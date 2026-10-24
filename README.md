@@ -87,9 +87,6 @@ Open a file and press `F5`. Output appears in the panel at the bottom;
   unresponsive.
 - Each run starts fresh: variables, Ruby classes and SQL tables from an
   earlier run are gone.
-- **Examples**: the `examples` folder has one small program per language.
-  If you deleted it, run *File: Add Example Programs* from the command
-  palette to get it back.
 
 ## Project layout
 
@@ -126,7 +123,7 @@ js/
   fileio.js             import, download and ZIP export
   statusbar.js          status bar
   welcome.js            welcome page
-  seed.js               the sample project and example programs shown on first launch
+  cleanup.js            removes the sample files older versions created
   actions.js            every command and its shortcut
   app.js                starts the app
 ```

@@ -109,8 +109,8 @@
     SC.commands.install();
     SC.menu.buildMenubar($('#menubar'));
 
-    const firstRun = !SC.storage.get('fs', null);
-    SC.fs.load(() => SC.seed.seed());
+    SC.fs.load();
+    SC.cleanup.removeOldTemplates();
 
     SC.tabs.init();
     SC.explorer.init();
@@ -126,16 +126,7 @@
     if (SC.storage.get('sidebarHidden', false) || isNarrow()) toggleSidebar(true);
 
     const restored = SC.tabs.restoreSession();
-    if (!restored) {
-      if (firstRun && SC.fs.isFile('my-project/README.md')) {
-        SC.explorer.reveal('my-project', { expand: true });
-        SC.tabs.open('my-project/main.py', { focus: false });
-        SC.tabs.open('my-project/README.md', { focus: false });
-        if (isNarrow()) toggleSidebar(true);
-      } else {
-        SC.tabs.showWelcome();
-      }
-    }
+    if (!restored) SC.tabs.showWelcome();
     SC.welcome.render();
     SC.statusbar.update();
     if (!SC.storage.available) {

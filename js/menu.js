@@ -131,7 +131,7 @@
     { label: 'Selection', items: ['edit.selectAll', 'edit.selectLine', '-', 'edit.copyLineUp', 'edit.copyLineDown', 'edit.moveLineUp', 'edit.moveLineDown', '-', 'edit.sortLines', 'edit.upperCase', 'edit.lowerCase'] },
     { label: 'View', items: ['workbench.commandPalette', 'workbench.quickOpen', '-', 'view.explorer', 'view.search', 'view.settings', '-', 'view.toggleSidebar', 'view.togglePanel', '-', 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', '-', 'theme.select', 'theme.customize'] },
     { label: 'Go', items: ['workbench.quickOpen', 'editor.goToLine', '-', 'editor.next', 'editor.previous'] },
-    { label: 'Run', items: ['run.file', 'run.stop', 'run.previewHtml', '-', 'examples.add', '-', 'panel.clear'] },
+    { label: 'Run', items: ['run.file', 'run.stop', 'run.previewHtml', '-', 'panel.clear'] },
     { label: 'Help', items: ['help.welcome', 'help.shortcuts', '-', 'help.about'] },
   ];
 

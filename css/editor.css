@@ -67,9 +67,10 @@
   font-variant-ligatures: none;
 }
 
+/* The colored text sits above the textarea so the selection is drawn behind the text. */
 .editor-highlight {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   color: var(--t-text);
   pointer-events: none;
   min-height: 100%;
@@ -78,7 +79,7 @@
 .editor-input {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 1;
   width: 100%;
   height: 100%;
   resize: none;

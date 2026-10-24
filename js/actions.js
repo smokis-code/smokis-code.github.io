@@ -151,21 +151,16 @@
       title: 'Reset the whole workspace?',
       message: 'Every file and folder in the workspace will be deleted. Export it as a ZIP first if you want to keep a copy. This can\'t be undone.',
       buttons: [
-        { label: 'Restore Sample Project', value: 'sample', primary: true },
-        { label: 'Start Empty', value: 'empty' },
-        { label: 'Cancel', value: 'cancel' },
+        { label: 'Delete Everything', value: 'delete', danger: true },
+        { label: 'Cancel', value: 'cancel', primary: true },
       ],
     });
-    if (choice === 'cancel') return;
+    if (choice !== 'delete') return;
     for (const doc of SC.tabs.docs()) await SC.tabs.close(doc.key, { force: true });
     SC.fs.reset();
-    if (choice === 'sample') {
-      SC.seed.seed();
-      SC.explorer.reveal('my-project', { expand: true });
-    }
     SC.storage.set('recentFiles', []);
     SC.tabs.showWelcome();
-    SC.notify(choice === 'sample' ? 'Workspace reset to the sample project.' : 'Workspace cleared.', 'success');
+    SC.notify('Workspace cleared.', 'success');
   }
 
   function showShortcuts() {
@@ -267,8 +262,6 @@
     R({ id: 'run.stop', category: 'Run', title: 'Stop Running Program', keybinding: 'Shift+F5', run: () => SC.runner.stop() });
     R({ id: 'run.previewHtml', category: 'Run', title: 'Preview HTML File', run: withEditor((ed, doc) => SC.panel.previewHtml(ed.value, doc.path)) });
     R({ id: 'panel.clear', category: 'Run', title: 'Clear Output', run: () => SC.panel.clear() });
-    R({ id: 'examples.add', category: 'File', title: 'Add Example Programs', run: () => SC.seed.addExamples() });
-
     /* Help */
     R({ id: 'help.welcome', category: 'Help', title: 'Welcome', run: () => { SC.welcome.render(); SC.tabs.closeAll(); } });
     R({ id: 'help.shortcuts', category: 'Help', title: 'Keyboard Shortcuts Reference', keybinding: 'Ctrl+K Ctrl+S', run: showShortcuts });

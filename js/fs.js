@@ -217,13 +217,12 @@
     events.emit('change', { type: 'reset', path: '' });
   }
 
-  function load(seedFn) {
+  function load() {
     const saved = SC.storage.get('fs', null);
     if (saved && saved.type === 'folder' && saved.children) {
       root = saved;
     } else {
       root = newFolder('');
-      if (seedFn) seedFn();
       persist();
     }
   }
