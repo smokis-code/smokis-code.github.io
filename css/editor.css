@@ -1,0 +1,257 @@
+/* ==========================================================================
+   Code editor
+   How it works: a transparent <textarea> sits exactly on top of a <pre>
+   that holds the syntax-highlighted copy of the same text. You type into
+   the textarea; the pre shows the colors underneath.
+   ========================================================================== */
+
+.editor {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-code);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  tab-size: var(--tab-size);
+  -moz-tab-size: var(--tab-size);
+  font-variant-ligatures: none;
+}
+
+.editor-scroller {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+
+.editor-content {
+  display: flex;
+  min-width: 100%;
+  min-height: 100%;
+  width: max-content;
+}
+
+.editor-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  flex: none;
+  padding: 0 14px 50vh 10px;
+  min-width: 52px;
+  text-align: right;
+  color: var(--c-line-number);
+  background: var(--c-bg);
+  user-select: none;
+  cursor: default;
+}
+.editor-gutter .ln { height: var(--line-height); }
+.editor-gutter .ln.active { color: var(--c-line-number-active); }
+.hide-line-numbers .editor-gutter { min-width: 0; padding-left: 0; padding-right: 8px; color: transparent; }
+
+.editor-code {
+  position: relative;
+  flex: 1 0 auto;
+}
+
+.editor-highlight,
+.editor-input {
+  margin: 0;
+  padding: 0 40px 50vh 6px;
+  border: 0;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: 0;
+  tab-size: inherit;
+  -moz-tab-size: inherit;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-variant-ligatures: none;
+}
+
+.editor-highlight {
+  position: relative;
+  z-index: 1;
+  color: var(--t-text);
+  pointer-events: none;
+  min-height: 100%;
+}
+
+.editor-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--c-cursor);
+}
+.editor-input::selection {
+  background: var(--c-selection);
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.editor-line-highlight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--line-height);
+  background: var(--c-current-line);
+  pointer-events: none;
+  z-index: 0;
+}
+.no-line-highlight .editor-line-highlight { display: none; }
+
+.editor-marks { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.find-mark {
+  position: absolute;
+  height: var(--line-height);
+  background: var(--c-find-match);
+  opacity: .55;
+  border-radius: 2px;
+}
+.find-mark.current { opacity: 1; outline: 1px solid var(--c-accent); }
+
+/* Hidden element used to measure one character's width */
+.editor-measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  font: inherit;
+}
+
+/* ---------- Syntax token colors ---------- */
+.t-comment   { color: var(--t-comment); font-style: italic; }
+.t-string    { color: var(--t-string); }
+.t-number    { color: var(--t-number); }
+.t-keyword   { color: var(--t-keyword); }
+.t-control   { color: var(--t-control); }
+.t-constant  { color: var(--t-constant); }
+.t-function  { color: var(--t-function); }
+.t-type      { color: var(--t-type); }
+.t-variable  { color: var(--t-variable); }
+.t-property  { color: var(--t-property); }
+.t-operator  { color: var(--t-operator); }
+.t-punct     { color: var(--t-punct); }
+.t-tag       { color: var(--t-tag); }
+.t-attr      { color: var(--t-attr); }
+.t-decorator { color: var(--t-decorator); }
+.t-builtin   { color: var(--t-builtin); }
+.t-regex     { color: var(--t-regex); }
+.t-heading   { color: var(--t-keyword); font-weight: 700; }
+.t-bold      { font-weight: 700; }
+.t-italic    { font-style: italic; }
+.t-link      { color: var(--t-function); text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---------- Find / replace widget ---------- */
+.find-widget {
+  position: absolute;
+  top: 0;
+  right: 22px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 4px;
+  padding: 6px 8px 6px 4px;
+  width: min(440px, calc(100% - 30px));
+  background: var(--c-widget-bg);
+  border: 1px solid var(--c-border);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+}
+.find-toggle-replace { grid-row: span 2; align-self: start; height: 26px; width: 18px; }
+.find-toggle-replace svg { width: 14px; height: 14px; transition: transform .12s; }
+.find-widget.replace-open .find-toggle-replace svg { transform: rotate(90deg); }
+.find-row { display: flex; align-items: center; gap: 3px; min-width: 0; }
+.find-row .find-field { position: relative; flex: 1; min-width: 0; }
+.find-row .text-input { height: 26px; padding-right: 58px; }
+.find-row .field-opts { position: absolute; right: 3px; top: 3px; display: flex; gap: 1px; }
+.opt-btn {
+  height: 20px;
+  min-width: 22px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: var(--font-code);
+  color: var(--c-fg-muted);
+  border: 1px solid transparent;
+}
+.opt-btn:hover { background: var(--c-hover); }
+.opt-btn.on { color: var(--c-accent); border-color: var(--c-accent); }
+.find-count { min-width: 64px; font-size: 12px; color: var(--c-fg-muted); text-align: center; white-space: nowrap; }
+.find-count.none { color: var(--c-error); }
+.find-row .icon-btn { width: 24px; height: 24px; }
+.find-replace-row:not(.show) { display: none; }
+
+/* ---------- Welcome page ---------- */
+.welcome {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 7vh max(24px, 6vw) 40px;
+}
+.welcome-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px 64px;
+}
+.welcome-hero { grid-column: 1 / -1; }
+.welcome-hero h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 500;
+  letter-spacing: -.01em;
+  color: var(--c-fg);
+}
+.welcome-hero h1 .apos { color: var(--c-accent); }
+.welcome-hero p {
+  margin: 6px 0 0;
+  font-size: 17px;
+  color: var(--c-fg-muted);
+}
+.welcome h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 500;
+}
+.welcome-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.welcome-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  color: var(--c-accent);
+  text-align: left;
+}
+.welcome-link:hover { text-decoration: underline; }
+.welcome-link svg { width: 18px; height: 18px; }
+.recent-row { display: flex; gap: 12px; align-items: baseline; min-width: 0; }
+.recent-row .recent-path {
+  color: var(--c-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.welcome-empty { color: var(--c-fg-muted); }
+.welcome-note { margin: 0 0 10px; max-width: 72ch; line-height: 1.6; color: var(--c-fg-muted); }
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  align-items: center;
+  color: var(--c-fg-muted);
+}
+.shortcut-grid kbd { justify-self: start; }
+
+@media (max-width: 760px) {
+  .welcome-inner { grid-template-columns: 1fr; gap: 28px; }
+  .editor-gutter { min-width: 40px; padding-right: 8px; padding-left: 4px; }
+}

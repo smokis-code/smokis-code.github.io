@@ -1,0 +1,196 @@
+/* ==========================================================================
+   Sidebar views: file explorer tree, search and settings
+   ========================================================================== */
+
+/* ---------- Explorer ---------- */
+.explorer-section-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  padding: 0 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+}
+.explorer-section-header .chev svg { width: 14px; height: 14px; }
+.explorer-section-header .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.explorer-section-header .actions { display: none; gap: 1px; }
+.sidebar-view:hover .explorer-section-header .actions,
+.explorer-section-header:focus-within .actions { display: flex; }
+.explorer-section-header .icon-btn { width: 22px; height: 22px; }
+.explorer-section-header .icon-btn svg { width: 15px; height: 15px; }
+
+.tree {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: 24px;
+  outline: none;
+  user-select: none;
+}
+.tree.drop-root { box-shadow: inset 0 0 0 1px var(--c-accent); }
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding-right: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  border: 1px solid transparent;
+}
+.tree-row:hover { background: var(--c-hover); }
+.tree-row.selected { background: var(--c-list-active); }
+.tree:focus .tree-row.selected { border-color: var(--c-accent); }
+.tree-row.active-file .tree-name { color: var(--c-tab-active-fg); font-weight: 500; }
+.tree-row.drop-target { background: var(--c-list-active); outline: 1px dashed var(--c-accent); outline-offset: -1px; }
+.tree-row .chev { flex: none; width: 16px; display: flex; justify-content: center; color: var(--c-fg-muted); }
+.tree-row .chev svg { width: 14px; height: 14px; transition: transform .1s; }
+.tree-row.expanded .chev svg { transform: rotate(90deg); }
+.tree-name { overflow: hidden; text-overflow: ellipsis; }
+.tree-row.dirty .tree-name::after { content: " ●"; color: var(--c-fg-muted); font-size: 10px; }
+.tree-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--c-border);
+}
+
+.tree-row .tree-input {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--c-accent);
+  background: var(--c-input-bg);
+  outline: none;
+  border-radius: 0;
+}
+.tree-error {
+  margin: 0 8px 4px 28px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: var(--c-widget-bg);
+  border: 1px solid var(--c-error);
+  color: var(--c-error);
+}
+
+/* Small colored badges used as file icons */
+.file-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-family: var(--font-code);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1;
+  border-radius: 3px;
+}
+.file-icon svg { width: 16px; height: 16px; stroke-width: 1.5; }
+.folder-icon { color: var(--c-accent); }
+
+.explorer-empty {
+  padding: 12px 18px;
+  color: var(--c-fg-muted);
+  line-height: 1.5;
+  display: grid;
+  gap: 10px;
+}
+.explorer-empty .btn { justify-content: center; }
+
+.open-editors .tree-row { padding-left: 10px; }
+.open-editors .row-close { margin-left: auto; visibility: hidden; display: flex; }
+.open-editors .tree-row:hover .row-close { visibility: visible; }
+.open-editors .row-close svg { width: 14px; height: 14px; }
+.open-editors .tree-path { color: var(--c-fg-muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+
+.drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--c-sidebar-bg) 85%, transparent);
+  border: 2px dashed var(--c-accent);
+  color: var(--c-fg);
+  pointer-events: none;
+}
+
+/* ---------- Search view ---------- */
+.search-form { padding: 4px 12px 10px 18px; display: grid; gap: 6px; }
+.search-field { position: relative; }
+.search-field .text-input { padding-right: 56px; }
+.search-field .field-opts { position: absolute; right: 3px; top: 3px; display: flex; gap: 1px; }
+.search-summary { padding: 0 18px 6px; color: var(--c-fg-muted); font-size: 12px; }
+.search-results { flex: 1; overflow: auto; min-height: 0; padding-bottom: 20px; }
+.search-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px 0 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.search-file:hover { background: var(--c-hover); }
+.search-file .count {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  background: var(--c-input-bg);
+  color: var(--c-fg-muted);
+}
+.search-file .dir { color: var(--c-fg-muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+.search-match {
+  padding: 2px 8px 2px 40px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  color: var(--c-fg-muted);
+}
+.search-match:hover { background: var(--c-hover); color: var(--c-fg); }
+.search-match mark {
+  background: var(--c-find-match);
+  color: var(--c-fg);
+  border-radius: 2px;
+}
+
+/* ---------- Settings view ---------- */
+.settings-list { padding: 4px 18px 30px; display: grid; gap: 18px; }
+.setting { display: grid; gap: 6px; }
+.setting-title { font-weight: 600; }
+.setting-title .cat { color: var(--c-fg-muted); font-weight: 400; }
+.setting-desc { color: var(--c-fg-muted); line-height: 1.45; }
+.setting select, .setting input[type="number"] {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--c-border);
+  background: var(--c-input-bg);
+  max-width: 100%;
+}
+.setting label.check { display: flex; gap: 8px; align-items: flex-start; line-height: 1.45; color: var(--c-fg-muted); cursor: pointer; }
+.setting label.check input { margin: 2px 0 0; accent-color: var(--c-accent); }
+.setting .row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Touch screens have no hover, so always show the section buttons */
+@media (hover: none) {
+  .explorer-section-header .actions { display: flex; }
+}

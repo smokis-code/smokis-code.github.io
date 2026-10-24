@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smoki's Code</title>
+<meta name="description" content="Smoki's Code: a code editor in your browser with syntax highlighting, themes, a file explorer and a command palette.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/editor.css">
+<link rel="stylesheet" href="css/explorer.css">
+<link rel="stylesheet" href="css/palette.css">
+</head>
+<body>
+<div id="app" class="workbench">
+
+  <!-- Title bar: logo, menus, command center -->
+  <header class="titlebar">
+    <div class="titlebar-left">
+      <div class="logo" title="Smoki's Code" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="20" height="20"><path d="M6 23 L14 16 L6 9" fill="none" stroke="var(--c-accent)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 24 h9" stroke="var(--c-accent)" stroke-width="3.2" stroke-linecap="round"/><path d="M21 4 c-3 3 3 5 0 8 M25.5 6 c-2 2 2 3.5 0 5.5" fill="none" stroke="var(--c-fg-muted)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </div>
+      <nav class="menubar" id="menubar" aria-label="Main menu"></nav>
+    </div>
+    <button class="command-center" id="command-center" type="button" title="Search files (Ctrl+P)">
+      <span class="cc-icon" data-icon="search"></span>
+      <span class="cc-label" id="command-center-label">Smoki's Code</span>
+    </button>
+    <div class="titlebar-right">
+      <button class="icon-btn" id="tb-toggle-sidebar" type="button" title="Toggle Sidebar (Ctrl+B)" data-icon="sidebar"></button>
+      <button class="icon-btn" id="tb-toggle-panel" type="button" title="Toggle Panel (Ctrl+J)" data-icon="panel"></button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- Activity bar -->
+    <nav class="activitybar" aria-label="Views">
+      <button class="activity-btn active" data-view="explorer" type="button" title="Explorer (Ctrl+Shift+E)" data-icon="files"></button>
+      <button class="activity-btn" data-view="search" type="button" title="Search (Ctrl+Shift+F)" data-icon="search"></button>
+      <button class="activity-btn" data-action="theme.select" type="button" title="Color Theme" data-icon="palette"></button>
+      <button class="activity-btn" data-action="workbench.commandPalette" type="button" title="Command Palette (Ctrl+Shift+P)" data-icon="command"></button>
+      <div class="activity-spacer"></div>
+      <button class="activity-btn" data-view="settings" type="button" title="Settings (Ctrl+,)" data-icon="settings"></button>
+    </nav>
+
+    <!-- Sidebar views -->
+    <aside class="sidebar" id="sidebar">
+      <section class="sidebar-view" id="view-explorer" data-view="explorer"></section>
+      <section class="sidebar-view" id="view-search" data-view="search" hidden></section>
+      <section class="sidebar-view" id="view-settings" data-view="settings" hidden></section>
+    </aside>
+    <div class="sash" id="sidebar-sash" title="Drag to resize"></div>
+
+    <!-- Editor area + bottom panel -->
+    <div class="editor-column">
+      <div class="editor-group">
+        <div class="tabs-bar">
+          <div class="tabs" id="tabs" role="tablist"></div>
+          <div class="tabs-actions" id="tabs-actions">
+            <button class="icon-btn" id="run-btn" type="button" title="Run / Preview (F5)" data-icon="play"></button>
+            <button class="icon-btn" id="tabs-more" type="button" title="More actions" data-icon="more"></button>
+          </div>
+        </div>
+        <div class="breadcrumbs" id="breadcrumbs"></div>
+        <div class="editors" id="editors">
+          <div class="find-widget" id="find-widget" hidden></div>
+          <div class="welcome" id="welcome"></div>
+        </div>
+      </div>
+      <div class="sash sash-h" id="panel-sash" hidden></div>
+      <section class="panel" id="panel" hidden></section>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <footer class="statusbar" id="statusbar"></footer>
+</div>
+
+<div id="overlay-root"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<!-- Scripts load in order; each file adds one module to the global SC object. -->
+<script src="js/util.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/fs.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/languages.js"></script>
+<script src="js/highlighter.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/commands.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/dialogs.js"></script>
+<script src="js/palette.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/find.js"></script>
+<script src="js/tabs.js"></script>
+<script src="js/explorer.js"></script>
+<script src="js/search.js"></script>
+<script src="js/settings-view.js"></script>
+<script src="js/panel.js"></script>
+<script src="js/runner.js"></script>
+<script src="js/fileio.js"></script>
+<script src="js/statusbar.js"></script>
+<script src="js/welcome.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
