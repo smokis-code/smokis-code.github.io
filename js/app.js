@@ -118,11 +118,12 @@
     SC.settingsView.init();
     SC.panel.init();
     SC.runner.init();
+    SC.extensions.init();
     SC.statusbar.init();
     bindChrome();
     initSidebarSash();
 
-    showView(['explorer', 'search', 'settings'].includes(currentView) ? currentView : 'explorer');
+    showView(['explorer', 'search', 'extensions', 'settings'].includes(currentView) ? currentView : 'explorer');
     if (SC.storage.get('sidebarHidden', false) || isNarrow()) toggleSidebar(true);
 
     const restored = SC.tabs.restoreSession();

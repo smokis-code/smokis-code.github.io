@@ -28,6 +28,9 @@ No install and no build step: open `index.html` and start coding.
 - **Preview**: `F5` on an HTML file previews it with its linked CSS and JS;
   on a Markdown file it shows the rendered page; on a JSON file it checks
   for mistakes and points at the line and column.
+- **Extensions** (`Ctrl+Shift+X`): a Terminal with PowerShell and MSYS2
+  profiles, pip for Python packages, and Tkinter apps that open in the App
+  tab. See [Extensions](#extensions) below.
 - Everything (files, open tabs, theme, settings) is saved in your browser's
   local storage, so it is still there when you come back.
 
@@ -47,6 +50,8 @@ No install and no build step: open `index.html` and start coding.
 | Color theme | `Ctrl+K` then `Ctrl+T` |
 | Run file | `F5` |
 | Stop running program | `Shift+F5` |
+| Extensions | `Ctrl+Shift+X` |
+| Focus terminal | ``Ctrl+Shift+` `` |
 
 Browsers keep `Ctrl+N`, `Ctrl+W` and `Ctrl+T` for themselves, which is why
 new file and close tab use `Alt` instead. On a Mac, `Ctrl` means `Cmd`.
@@ -88,6 +93,79 @@ Open a file and press `F5`. Output appears in the panel at the bottom;
 - Each run starts fresh: variables, Ruby classes and SQL tables from an
   earlier run are gone.
 
+## Extensions
+
+Open the Extensions view from the activity bar (or `Ctrl+Shift+X`). Each
+extension can be turned off and on; click one to see what it adds and its
+commands. New features are added here as extensions.
+
+### Terminal
+
+A terminal tab in the bottom panel with two profiles (pick one in the tab, or
+run *Terminal: Select Default Profile*):
+
+- **PowerShell**: `dir`, `Get-ChildItem`, `Set-Location`, `Get-Content`,
+  `New-Item`, `Remove-Item`, `Copy-Item`, `Test-Path`... Your workspace is
+  `C:\workspace`.
+- **MSYS2 MINGW64** (bash): `ls -la`, `cat`, `grep`, `find`, `head`, `tail`,
+  `wc`, `touch`, `rm -r`... Your workspace is `~` (`/c/workspace`).
+
+Both profiles can run programs: `python file.py`, `python -c "..."`, plain
+`python` for the Python prompt, `node`, `lua`, `ruby`, `sqlite3 < file.sql`
+and `ts-node`. Compilers build on godbolt.org and leave a small program file:
+`gcc hello.c -o hello` then `./hello.exe`, `g++`, `rustc`, `go build` /
+`go run`, `javac Main.java` then `java Main`, `csc` and `dotnet run`.
+
+`;` and `&&` run several commands, `>` and `>>` save output to a file, Up and
+Down go through history, Tab completes names and Ctrl+C stops a program.
+
+This is an emulation written in JavaScript: there is no real Windows or MSYS2
+underneath, so only the commands listed by `help` exist, and pipes (`|`) are
+not supported yet.
+
+### pip
+
+`pip install <package>` (also `python -m pip`), `pip uninstall`, `pip list`,
+`pip freeze`, `pip show` and `pip install -r requirements.txt` in the
+terminal, or from the pip extension's page in the Extensions view. It uses
+Pyodide's micropip, so it installs pure-Python packages from PyPI and
+Pyodide's own builds of packages such as numpy, pandas and matplotlib.
+Installed packages are remembered and loaded before every Python run.
+
+### Tkinter apps
+
+Python programs that use `tkinter` open their windows in the **App** tab,
+drawn like Windows apps: title bar, menus, buttons, entries and so on. Run
+*New Tkinter App* from the command palette for a starting point.
+
+- Supported: `Tk`, `Toplevel`, `Frame`, `LabelFrame`, `Label`, `Button`,
+  `Entry`, `Text`, `Checkbutton`, `Radiobutton`, `Scale`, `Spinbox`,
+  `Listbox`, `Canvas` (lines, rectangles, ovals, polygons, arcs, text, tags,
+  `move`, `coords`, `tag_bind`), `Menu`, `OptionMenu`, and in `ttk` also
+  `Combobox`, `Notebook`, `Progressbar`, `Treeview` and `Separator`.
+- `pack`, `grid` (with weights and `sticky`) and `place` follow Tk's own
+  rules; `StringVar`/`IntVar`/`DoubleVar`/`BooleanVar`, `bind()` for mouse
+  and keyboard events, `after()` timers and `messagebox.showinfo/warning/error`
+  work.
+- Differences: `mainloop()` returns right away and the program keeps running
+  until you close the window or press `Shift+F5`. Pictures (`PhotoImage`)
+  and file dialogs are not available. A dialog can't wait for your click, so
+  `messagebox.askyesno` and similar answer Yes right away, and
+  `simpledialog.askstring` reads from the input you type when the program
+  starts.
+
+### Writing a new extension
+
+Add a file in `js/extensions/`, load it in `index.html` after
+`js/extensions.js`, and call `SC.extensions.register({ id, name, version,
+description, icon, features, commands, activate(ctx), deactivate() })`.
+Inside `activate`, use `ctx.registerCommand(...)` and
+`ctx.addPanelTab(...)`; both are undone automatically when the extension is
+turned off, and anything else goes in `ctx.onDispose(fn)`. Extensions can
+also run code with `SC.runner.runSource(...)`, send Python modules or pip
+packages to every Python run with `SC.runner.addPythonProvider(...)`, and
+listen to running programs with `SC.runner.on(type, fn)`.
+
 ## Project layout
 
 ```
@@ -98,6 +176,7 @@ css/
   editor.css            code editor, syntax token colors, find widget, welcome page
   explorer.css          explorer tree, search view, settings view
   palette.css           command palette, menus, dialogs, theme customizer
+  extensions.css        Extensions view, Terminal and App tab
 js/
   util.js               shared helpers (DOM, paths, fuzzy matching, toasts)
   icons.js              SVG icons and colored file-type badges
@@ -120,6 +199,12 @@ js/
   settings-view.js      settings sidebar
   panel.js              output and preview panel
   runner.js             runs code with F5: in-browser runtimes and godbolt.org
+  extensions.js         the extension system and the Extensions view
+  extensions/
+    terminal.js         Terminal: PowerShell and MSYS2 profiles
+    pip.js              pip for the in-browser Python
+    tkinter-py.js       the browser version of Python's tkinter package
+    tkinter.js          draws tkinter windows in the App tab
   fileio.js             import, download and ZIP export
   statusbar.js          status bar
   welcome.js            welcome page

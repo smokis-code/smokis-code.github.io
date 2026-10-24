@@ -48,7 +48,7 @@
   const READS_INPUT = {
     javascript: /\bprompt\s*\(/,
     typescript: /\bprompt\s*\(/,
-    python: /\binput\s*\(|sys\.stdin/,
+    python: /\binput\s*\(|sys\.stdin|\bask(string|integer|float)\s*\(/,
     lua: /io\.read|io\.lines\s*\(\s*\)/,
     ruby: /\bgets\b|\$stdin|\bSTDIN\b|\breadlines?\b/,
     c: /\b(scanf|getchar|fgets|getline|gets)\s*\(/,
@@ -214,22 +214,123 @@
       py.setStderr({ write: function (b) { out(decErr.decode(b, { stream: true }), 'error'); return b.length; }, isatty: true });
       py.setStdin({ stdin: function () { const line = nextLine(); return line === null ? null : line + '\n'; } });
     }
+    // Python modules from extensions (such as tkinter) live in /smoki_lib.
+    const pyModules = {};
+    const pipInstalled = new Set();
+    let pyLibReady = false;
+    async function preparePython(msg) {
+      if (!pyLibReady) {
+        py.FS.mkdirTree('/smoki_lib');
+        py.runPython('import sys\nsys.path.insert(0, "/smoki_lib")');
+        pyLibReady = true;
+      }
+      const files = msg.pyModules || {};
+      const tops = Object.keys(files).concat(Object.keys(pyModules)).map(function (p) { return p.split('/')[0].replace(/\.py$/, ''); });
+      // Remove modules from extensions that were turned off
+      for (const path of Object.keys(pyModules)) {
+        if (path in files) continue;
+        try { py.FS.unlink('/smoki_lib/' + path); } catch (err) { /* already gone */ }
+        delete pyModules[path];
+        // An empty folder would still import as a package, so remove it too
+        const parts = path.split('/').slice(0, -1);
+        for (let i = parts.length; i > 0; i--) {
+          try { py.FS.rmdir('/smoki_lib/' + parts.slice(0, i).join('/')); } catch (err) { break; }
+        }
+      }
+      for (const path of Object.keys(files)) {
+        if (pyModules[path] === files[path]) continue;
+        const dir = '/smoki_lib/' + path.split('/').slice(0, -1).join('/');
+        py.FS.mkdirTree(dir);
+        py.FS.writeFile('/smoki_lib/' + path, files[path]);
+        pyModules[path] = files[path];
+      }
+      // Forget extension modules from the last run, so each run starts fresh.
+      py.runPython([
+        'import sys, importlib',
+        'for _m in [m for m in sys.modules if m.split(".")[0] in ' + JSON.stringify(tops) + ']:',
+        '    del sys.modules[_m]',
+        'importlib.invalidate_caches()',
+      ].join('\n'));
+      // Packages installed with pip
+      const missing = (msg.pip || []).filter(function (p) { return !pipInstalled.has(p); });
+      if (missing.length) {
+        out('Loading pip packages: ' + missing.join(', ') + '\n', 'info');
+        await py.loadPackage('micropip');
+        try {
+          await py.pyimport('micropip').install(missing);
+          missing.forEach(function (p) { pipInstalled.add(p); });
+        } catch (err) {
+          fail('Could not load pip packages: ' + String(err.message || err).split('\n').pop());
+        }
+      }
+    }
+    // The terminal's Python prompt. Lines are compiled like the real REPL.
+    const REPL = [
+      'import codeop as _codeop, sys as _sys, traceback as _tb',
+      '_smoki_ns = {"__name__": "__main__"}',
+      '_smoki_buf = []',
+      'def _smoki_repl(line):',
+      '    _smoki_buf.append(line)',
+      '    try:',
+      '        code = _codeop.compile_command("\\n".join(_smoki_buf), "<stdin>", "single")',
+      '    except (SyntaxError, OverflowError, ValueError):',
+      '        _smoki_buf.clear()',
+      '        _tb.print_exc(limit=0)',
+      '        return "ok"',
+      '    if code is None:',
+      '        return "more"',
+      '    _smoki_buf.clear()',
+      '    try:',
+      '        exec(code, _smoki_ns)',
+      '    except SystemExit:',
+      '        return "exit"',
+      '    except BaseException:',
+      '        t, v, tb = _sys.exc_info()',
+      '        _tb.print_exception(t, v, tb.tb_next)',
+      '    return "ok"',
+    ].join('\n');
+    let replReady = false;
+    async function runRepl(msg) {
+      if (!replReady) { py.runPython(REPL); replReady = true; }
+      await py.loadPackagesFromImports(msg.code);
+      const status = py.globals.get('_smoki_repl')(msg.code);
+      py.runPython('import sys\nsys.stdout.flush()\nsys.stderr.flush()');
+      done({ status: status });
+    }
     async function runPython(msg) {
+      await preparePython(msg);
+      if (msg.repl) { await runRepl(msg); return; }
       const scope = py.globals.get('dict')();
       scope.set('__name__', '__main__');
       scope.set('__file__', msg.name);
+      self.smokiAppOpen = false;
+      let failed = false;
       try {
-        await py.loadPackagesFromImports(msg.code, { messageCallback: function (m) { out(m + '\n', 'info'); }, errorCallback: function (m) { out(m + '\n', 'warn'); } });
+        await py.loadPackagesFromImports(msg.code, { messageCallback: function (m) { if (!/already loaded|No new packages/.test(m)) out(m + '\n', 'info'); }, errorCallback: function (m) { out(m + '\n', 'warn'); } });
         await py.runPythonAsync(msg.code, { globals: scope, filename: msg.name });
       } catch (err) {
         py.runPython('import sys\nsys.stdout.flush()');
-        fail(cleanTraceback(String(err.message || err), msg.name));
+        const text = String(err.message || err);
+        const exit = /SystemExit:? ?(.*)\s*$/.exec(text.trim().split('\n').pop());
+        if (exit) { // sys.exit(): no traceback, like real Python
+          const code = exit[1].trim();
+          failed = !/^(0|None|)$/.test(code);
+          if (failed && !/^\d+$/.test(code)) fail(code);
+        } else {
+          failed = true;
+          fail(cleanTraceback(text, msg.name));
+        }
       } finally {
         py.runPython('import sys\nsys.stdout.flush()\nsys.stderr.flush()');
-        scope.destroy();
       }
-      done();
+      // A GUI app (tkinter) keeps running after the code ends, until its window closes.
+      if (self.smokiAppOpen) { post('waiting'); return; }
+      scope.destroy();
+      done({ failed: failed });
     }
+    // Called by the tkinter module
+    self.smokiAppSend = function (json) { post('app', { ui: json }); };
+    self.smokiAppClosed = function () { if (self.smokiAppOpen) { self.smokiAppOpen = false; done(); } };
     // Hide Pyodide's own frames so the traceback starts at your file.
     function cleanTraceback(text, name) {
       const lines = text.replace(/File "<exec>"/g, 'File "' + name + '"').split('\n');
@@ -426,6 +527,13 @@
     self.addEventListener('message', function (e) {
       const msg = e.data;
       if ((!cfg.worker && e.source !== parent) || !msg || msg.smokiRun == null) return;
+      // Clicks and typing in a running app window (tkinter)
+      if (msg.appEvent) {
+        if (self.smokiAppHandler) {
+          try { self.smokiAppHandler(JSON.stringify(msg.appEvent)); } catch (err) { fail(String(err.message || err)); }
+        }
+        return;
+      }
       runId = msg.smokiRun;
       input = msg.stdin ? msg.stdin.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n') : [];
       tokens = [];
@@ -454,20 +562,30 @@
      ====================================================================== */
   function fmtTime(ms) { return ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(1) + ' s'; }
 
-  function startRun(name) {
-    const run = { id: ++runCounter, name, started: performance.now(), done: false, frame: null, controller: null };
+  /* Where a run's output goes: the Output tab, or the terminal (see terminal.js). */
+  const panelSink = {
+    start(name) { SC.panel.show('output'); SC.panel.clear(); SC.panel.log('[Running] ' + name, 'system'); },
+    write: (text, kind) => SC.panel.write(text, kind),
+    log: (text, kind) => SC.panel.log(text, kind),
+    isLineOpen: () => SC.panel.isLineOpen(),
+    finish: (message, kind) => SC.panel.log(message, kind),
+  };
+
+  function startRun(name, sink = panelSink) {
+    const run = { id: ++runCounter, name, started: performance.now(), done: false, frame: null, controller: null, out: sink };
+    run.promise = new Promise((resolve) => { run.resolve = resolve; });
     current = run;
-    SC.panel.show('output');
-    SC.panel.clear();
-    SC.panel.log('[Running] ' + name, 'system');
+    if (sink.start) sink.start(name);
     SC.panel.setRunning(true);
-    run.finish = (message, kind = 'system') => {
+    run.finish = (message, kind = 'system', result = {}) => {
       if (run.done) return;
       run.done = true;
       if (current === run) current = null;
-      if (SC.panel.isLineOpen()) SC.panel.write('\n');
-      SC.panel.log(message || '[Done] finished in ' + fmtTime(performance.now() - run.started), kind);
+      if (sink.isLineOpen()) sink.write('\n');
+      sink.finish(message || '[Done] finished in ' + fmtTime(performance.now() - run.started), kind, result);
       SC.panel.setRunning(!!current);
+      run.resolve(Object.assign({ ok: kind !== 'error', message }, result));
+      (listeners.finish || []).forEach((fn) => fn(run));
     };
     return run;
   }
@@ -503,7 +621,8 @@
     if (!rt.keep) killFrame(engine); // JavaScript and Lua start fresh every time
     const f = getFrame(engine);
     run.frame = f;
-    if (!f.booted && rt.size) SC.panel.log('Starting ' + rt.label + '. The first run downloads ' + rt.size + '; later runs use the browser cache.', 'info');
+    if (!f.booted && rt.size) run.out.log('Starting ' + rt.label + '. The first run downloads ' + rt.size + '; later runs use the browser cache.', 'info');
+    if (engine === 'python') extra = Object.assign(pythonExtras(), extra || {});
     try {
       await f.ready;
     } catch (err) {
@@ -530,11 +649,38 @@
     const run = current;
     if (!run || d.run !== run.id) return;
     if (d.type === 'out') {
-      if (d.fresh && SC.panel.isLineOpen()) SC.panel.write('\n');
-      SC.panel.write(d.text, d.kind);
+      if (d.fresh && run.out.isLineOpen()) run.out.write('\n');
+      run.out.write(d.text, d.kind);
     }
     else if (d.type === 'js') runLocal(run, 'javascript', d.code, run.stdin, { commonjs: true });
-    else if (d.type === 'done') run.finish(d.failed ? '[Failed] after ' + fmtTime(performance.now() - run.started) : '', d.failed ? 'error' : 'system');
+    else if (d.type === 'waiting') {
+      run.waiting = true;
+      run.out.log('The app window is open. Close it, or press Shift+F5, to end the program.', 'info');
+    }
+    else if (d.type === 'done') run.finish(d.failed ? '[Failed] after ' + fmtTime(performance.now() - run.started) : '', d.failed ? 'error' : 'system', { status: d.status });
+    else (listeners[d.type] || []).forEach((fn) => fn(d, run));
+  }
+
+  /* ---------- Hooks for extensions ---------- */
+  const listeners = {};
+  const pythonProviders = [];
+  /** Listen for a custom message type from a running program (for example 'app'). */
+  function on(type, fn) { (listeners[type] = listeners[type] || []).push(fn); }
+  function off(type, fn) { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); }
+  /** Send a message to the program a run belongs to. */
+  function send(run, msg) {
+    if (run && run.frame && run.frame.iframe.contentWindow) run.frame.iframe.contentWindow.postMessage(Object.assign({ smokiRun: run.id }, msg), '*');
+  }
+  /** Add Python modules or pip packages to every Python run: fn() returns { pyModules, pip }. */
+  function addPythonProvider(fn) { pythonProviders.push(fn); return () => pythonProviders.splice(pythonProviders.indexOf(fn) >>> 0, 1); }
+  function pythonExtras() {
+    const extra = { pyModules: {}, pip: [] };
+    for (const fn of pythonProviders) {
+      const x = fn() || {};
+      Object.assign(extra.pyModules, x.pyModules || {});
+      extra.pip.push(...(x.pip || []));
+    }
+    return extra;
   }
 
   /* ---------- godbolt.org ---------- */
@@ -582,12 +728,19 @@
     const lines = (arr) => (arr || []).map((x) => x.text).join('\n');
     try {
       let compiler = await pickCompiler(spec, controller.signal);
-      SC.panel.log('Compiling on godbolt.org with ' + compiler.name + '...', 'info');
+      run.out.log('Compiling on godbolt.org with ' + compiler.name + '...', 'info');
       const body = JSON.stringify({
         source: spec.prepare ? spec.prepare(code) : code,
         lang: spec.lang,
         allowStoreCodeDebug: false,
-        options: {
+        options: run.compileOnly ? {
+          // Build only (gcc, javac... in the terminal): no program run
+          userArguments: spec.args,
+          compilerOptions: { executorRequest: false, skipAsm: true },
+          filters: { execute: false, binary: false },
+          tools: [],
+          libraries: [],
+        } : {
           userArguments: spec.args,
           compilerOptions: { executorRequest: true, skipAsm: true },
           executeParameters: { args: [], stdin: stdin && !stdin.endsWith('\n') ? stdin + '\n' : stdin },
@@ -607,20 +760,31 @@
       if (!res.ok) throw new Error('godbolt.org answered with error ' + res.status + '.');
       const r = await res.json();
       if (run !== current) return;
+      if (run.compileOnly) {
+        const messages = clean(lines(r.stderr) || lines(r.stdout));
+        if (r.code) {
+          if (messages) run.out.write(messages + '\n', 'error');
+          run.finish('[Build failed] ' + spec.label + ' code did not compile', 'error');
+        } else {
+          if (messages) run.out.write(messages + '\n', 'warn');
+          run.finish('[Done] built with ' + compiler.name + ' in ' + fmtTime(performance.now() - run.started), 'system', { compiler: compiler.name });
+        }
+        return;
+      }
       const build = r.buildResult || {};
       if (!r.didExecute) {
         const errors = clean(lines(build.stderr) || lines(build.stdout) || lines(r.stderr));
-        if (errors) SC.panel.write(errors + '\n', 'error');
+        if (errors) run.out.write(errors + '\n', 'error');
         run.finish('[Build failed] ' + spec.label + ' code did not compile', 'error');
         return;
       }
       const warnings = clean(lines(build.stderr));
-      if (warnings) SC.panel.write(warnings + '\n', 'warn');
-      if (stdin) SC.panel.write(stdin.replace(/\n?$/, '\n'), 'input');
-      if (r.stdout && r.stdout.length) SC.panel.write(lines(r.stdout) + '\n');
-      if (r.stderr && r.stderr.length) SC.panel.write(clean(lines(r.stderr)) + '\n', 'error');
-      if (r.timedOut) SC.panel.log('The program took too long and was stopped by godbolt.org.', 'warn');
-      if (r.truncated) SC.panel.log('The output was too long and was cut off.', 'warn');
+      if (warnings) run.out.write(warnings + '\n', 'warn');
+      if (stdin) run.out.write(stdin.replace(/\n?$/, '\n'), 'input');
+      if (r.stdout && r.stdout.length) run.out.write(lines(r.stdout) + '\n');
+      if (r.stderr && r.stderr.length) run.out.write(clean(lines(r.stderr)) + '\n', 'error');
+      if (r.timedOut) run.out.log('The program took too long and was stopped by godbolt.org.', 'warn');
+      if (r.truncated) run.out.log('The output was too long and was cut off.', 'warn');
       const time = fmtTime(performance.now() - run.started);
       if (r.code) run.finish('[Done] exited with code ' + r.code + ' in ' + time, 'warn');
       else run.finish('[Done] finished in ' + time + (r.execTime ? ' (program ran for ' + r.execTime + ' ms)' : ''));
@@ -770,28 +934,50 @@
       notRunnable((SC.languages.byId[lang] || { name: 'These' }).name + ' files can\'t run here. F5 runs JavaScript, TypeScript, Python, Lua, SQL, Ruby, C, C++, Rust, Go, Java and C# files, previews HTML and Markdown, and checks JSON.');
       return;
     }
-    let stdin = '';
-    if (READS_INPUT[lang] && READS_INPUT[lang].test(code)) {
-      stdin = await SC.dialog.promptText({
-        title: 'Input for ' + basename(name),
-        message: 'This program reads input. Type everything it should read, one answer per line. It is all sent to the program when it starts.',
-        value: lastInput.get(name) || '',
-        okLabel: 'Run',
-      });
-      if (stdin == null) return;
-      lastInput.set(name, stdin);
-    }
+    const stdin = await askInput(lang, code, name);
+    if (stdin == null) return;
+    return runSource({ lang, code, name, stdin });
+  }
+
+  /** If the code reads input, ask for it first. Resolves to the text ('' if none needed) or null if cancelled. */
+  async function askInput(lang, code, name) {
+    if (!READS_INPUT[lang] || !READS_INPUT[lang].test(code)) return '';
+    const stdin = await SC.dialog.promptText({
+      title: 'Input for ' + basename(name),
+      message: 'This program reads input. Type everything it should read, one answer per line. It is all sent to the program when it starts.',
+      value: lastInput.get(name) || '',
+      okLabel: 'Run',
+    });
+    if (stdin != null) lastInput.set(name, stdin);
+    return stdin;
+  }
+
+  /**
+   * Run code in any supported language. Output goes to `sink` (the Output tab by default).
+   * Resolves when the program ends: { ok, message, status }.
+   */
+  function runSource({ lang, code, name, stdin = '', sink = panelSink, extra, compileOnly = false }) {
+    const local = RUNTIMES[lang];
+    const remote = COMPILED[lang];
+    if (!local && !remote) return Promise.resolve({ ok: false, message: 'Unsupported language: ' + lang });
     stop({ quiet: true });
-    const r = startRun(name);
+    const r = startRun(name, sink);
     r.stdin = stdin;
-    if (local) runLocal(r, lang, code, stdin);
+    r.compileOnly = compileOnly;
+    if (local) runLocal(r, lang, code, stdin, extra);
     else runRemote(r, remote, code, stdin);
+    return r.promise;
   }
 
   /** Stop the running program. Its runtime is thrown away and reloads next time. */
   function stop({ quiet = false } = {}) {
     const r = current;
     if (!r) { if (!quiet) SC.statusbar.message('Nothing is running', 1500); return; }
+    if (r.waiting) { // an app window is open: close it and keep Python loaded
+      send(r, { appEvent: { type: 'close' } });
+      r.finish('[Done] app closed after ' + fmtTime(performance.now() - r.started));
+      return;
+    }
     if (r.controller) r.controller.abort();
     if (r.frame) killFrame(r.frame.engine);
     r.finish('[Stopped] after ' + fmtTime(performance.now() - r.started), 'warn');
@@ -799,5 +985,9 @@
 
   function init() { window.addEventListener('message', onMessage); }
 
-  SC.runner = { init, run, stop, isRunning: () => !!current, pickCompiler, prepareJava, findJsonError, RUNTIMES, COMPILED };
+  SC.runner = {
+    init, run, runSource, askInput, stop, on, off, send, addPythonProvider,
+    isRunning: () => !!current, current: () => current, fmtTime,
+    pickCompiler, prepareJava, findJsonError, RUNTIMES, COMPILED, READS_INPUT,
+  };
 })(window.SC);

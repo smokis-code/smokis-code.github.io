@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/editor.css">
 <link rel="stylesheet" href="css/explorer.css">
 <link rel="stylesheet" href="css/palette.css">
+<link rel="stylesheet" href="css/extensions.css">
 </head>
 <body>
 <div id="app" class="workbench">
@@ -40,6 +41,7 @@
     <nav class="activitybar" aria-label="Views">
       <button class="activity-btn active" data-view="explorer" type="button" title="Explorer (Ctrl+Shift+E)" data-icon="files"></button>
       <button class="activity-btn" data-view="search" type="button" title="Search (Ctrl+Shift+F)" data-icon="search"></button>
+      <button class="activity-btn" data-view="extensions" type="button" title="Extensions (Ctrl+Shift+X)" data-icon="extensions"></button>
       <button class="activity-btn" data-action="theme.select" type="button" title="Color Theme" data-icon="palette"></button>
       <button class="activity-btn" data-action="workbench.commandPalette" type="button" title="Command Palette (Ctrl+Shift+P)" data-icon="command"></button>
       <div class="activity-spacer"></div>
@@ -50,6 +52,7 @@
     <aside class="sidebar" id="sidebar">
       <section class="sidebar-view" id="view-explorer" data-view="explorer"></section>
       <section class="sidebar-view" id="view-search" data-view="search" hidden></section>
+      <section class="sidebar-view" id="view-extensions" data-view="extensions" hidden></section>
       <section class="sidebar-view" id="view-settings" data-view="settings" hidden></section>
     </aside>
     <div class="sash" id="sidebar-sash" title="Drag to resize"></div>
@@ -104,6 +107,11 @@
 <script src="js/settings-view.js"></script>
 <script src="js/panel.js"></script>
 <script src="js/runner.js"></script>
+<script src="js/extensions.js"></script>
+<script src="js/extensions/terminal.js"></script>
+<script src="js/extensions/pip.js"></script>
+<script src="js/extensions/tkinter-py.js"></script>
+<script src="js/extensions/tkinter.js"></script>
 <script src="js/fileio.js"></script>
 <script src="js/statusbar.js"></script>
 <script src="js/welcome.js"></script>

@@ -1,7 +1,8 @@
 /* ==========================================================================
    panel.js — bottom panel with OUTPUT (what a running program prints) and
    PREVIEW (renders HTML and Markdown files). Running code lives in
-   runner.js; this file only shows the results.
+   runner.js; this file only shows the results. Extensions add their own
+   tabs with SC.panel.addTab() (for example Terminal and App).
    ========================================================================== */
 (function (SC) {
   'use strict';
@@ -13,6 +14,9 @@
   let previewFrame;
   let activeTab = 'output';
   const tabButtons = {};
+  const panes = {};     // tab id -> { el, onShow, onClear }
+  let tabStrip;
+  let bodyEl;
   let openLine = null; // the last output line, while it has no newline yet
   let runBtn;
   let stopBtn;
@@ -23,19 +27,20 @@
     outputEl = el('pre', { class: 'panel-output', id: 'panel-output', 'aria-live': 'polite' });
     previewFrame = el('iframe', { class: 'panel-preview', title: 'HTML preview', sandbox: 'allow-scripts allow-modals allow-forms', hidden: true });
     const header = el('div', { class: 'panel-header' });
-    for (const [id, label] of [['output', 'Output'], ['preview', 'Preview']]) {
-      tabButtons[id] = el('button', { class: 'panel-tab', type: 'button', text: label, onClick: () => showTab(id) });
-      header.append(tabButtons[id]);
-    }
+    tabStrip = el('div', { class: 'panel-tabs', role: 'tablist' });
+    bodyEl = el('div', { class: 'panel-body' });
+    header.append(tabStrip);
+    addTab('output', 'Output', outputEl, { onClear: clear });
+    addTab('preview', 'Preview', previewFrame);
     runBtn = el('button', { class: 'icon-btn', type: 'button', title: 'Run Active File (F5)', 'data-icon': 'play', onClick: () => SC.commands.run('run.file') });
     stopBtn = el('button', { class: 'icon-btn stop-btn', type: 'button', title: 'Stop (Shift+F5)', 'data-icon': 'stop', hidden: true, onClick: () => SC.commands.run('run.stop') });
     header.append(
       el('div', { class: 'spacer' }),
       runBtn,
       stopBtn,
-      el('button', { class: 'icon-btn', type: 'button', title: 'Clear Output', 'data-icon': 'clear', onClick: clear }),
+      el('button', { class: 'icon-btn', type: 'button', title: 'Clear', 'data-icon': 'clear', onClick: () => { const p = panes[activeTab]; if (p && p.onClear) p.onClear(); } }),
       el('button', { class: 'icon-btn', type: 'button', title: 'Close Panel', 'data-icon': 'close', onClick: hide }));
-    panel.append(header, el('div', { class: 'panel-body' }, outputEl, previewFrame));
+    panel.append(header, bodyEl);
     SC.icons.hydrate(panel);
     showTab('output');
     log('Press F5 to run the open file. JavaScript, TypeScript, Python, Lua, SQL and Ruby run in your browser; C, C++, Rust, Go, Java and C# are compiled on godbolt.org. HTML and Markdown files open in the Preview tab.', 'info');
@@ -54,14 +59,14 @@
       const startY = e.clientY;
       const startH = panel.getBoundingClientRect().height;
       const wb = document.querySelector('.workbench');
-      previewFrame.style.pointerEvents = 'none';
+      panel.classList.add('resizing'); // iframes would swallow the pointer
       const move = (ev) => {
         const h = SC.util.clamp(startH + (startY - ev.clientY), 80, window.innerHeight * 0.75);
         wb.style.setProperty('--panel-height', h + 'px');
       };
       const up = () => {
         sash.classList.remove('dragging');
-        previewFrame.style.pointerEvents = '';
+        panel.classList.remove('resizing');
         sash.removeEventListener('pointermove', move);
         sash.removeEventListener('pointerup', up);
         SC.storage.set('panelHeight', Math.round(panel.getBoundingClientRect().height));
@@ -89,10 +94,40 @@
   function toggle() { if (panel.hidden) show(); else hide(); }
 
   function showTab(id) {
+    if (!panes[id]) id = 'output';
     activeTab = id;
     Object.entries(tabButtons).forEach(([k, b]) => b.classList.toggle('active', k === id));
-    outputEl.hidden = id !== 'output';
-    previewFrame.hidden = id !== 'preview';
+    Object.entries(panes).forEach(([k, p]) => { p.el.hidden = k !== id; });
+    if (panes[id].onShow) panes[id].onShow();
+  }
+
+  /** Add a tab to the panel. element fills the panel body while the tab is shown. */
+  function addTab(id, label, element, { onShow, onClear } = {}) {
+    if (panes[id]) removeTab(id);
+    tabButtons[id] = el('button', { class: 'panel-tab', type: 'button', role: 'tab', text: label, onClick: () => showTab(id) });
+    tabStrip.append(tabButtons[id]);
+    element.classList.add('panel-pane');
+    element.hidden = true;
+    bodyEl.append(element);
+    panes[id] = { el: element, onShow, onClear };
+    if (activeTab === id) showTab(id);
+  }
+
+  function removeTab(id) {
+    const p = panes[id];
+    if (!p || id === 'output') return;
+    p.el.remove();
+    tabButtons[id].remove();
+    delete panes[id];
+    delete tabButtons[id];
+    if (activeTab === id) showTab('output');
+  }
+
+  /** Make the panel at least this tall (in pixels), up to 75% of the window. */
+  function ensureHeight(px) {
+    const h = Math.min(px, window.innerHeight * 0.75);
+    if (panel.getBoundingClientRect().height >= h) return;
+    document.querySelector('.workbench').style.setProperty('--panel-height', Math.round(h) + 'px');
   }
 
   /** Add a whole line. An unfinished line from write() is closed first. */
@@ -177,5 +212,5 @@
     if (label) log(label, 'system');
   }
 
-  SC.panel = { init, show, hide, toggle, log, write, isLineOpen, clear, setRunning, previewHtml, previewDoc, isOpen: () => !panel.hidden, activeTab: () => activeTab };
+  SC.panel = { init, show, hide, toggle, log, write, isLineOpen, clear, setRunning, previewHtml, previewDoc, addTab, removeTab, showTab, ensureHeight, isOpen: () => !panel.hidden, activeTab: () => activeTab };
 })(window.SC);

@@ -14,6 +14,7 @@
     sidebar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
     panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 14h18"/>',
     play: '<path d="M7 4.5v15l12.5-7.5z"/>',
+    extensions: '<rect x="3" y="11" width="10" height="10" rx="1"/><rect x="3" y="3" width="8" height="8" rx="1" transform="translate(0 -0)"/><rect x="14" y="2" width="8" height="8" rx="1" transform="rotate(12 18 6)"/><rect x="11" y="11" width="10" height="10" rx="1"/>',
     stop: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
     more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
     close: '<path d="M18 6 6 18M6 6l12 12"/>',

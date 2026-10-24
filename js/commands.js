@@ -166,5 +166,7 @@
     window.addEventListener('keydown', onKeyDown, true);
   }
 
-  SC.commands = { register, run, list, label, keyFor, formatBinding, eventToStroke, check, install, get: (id) => registry.get(id), CONTEXTS };
+  function unregister(id) { registry.delete(id); }
+
+  SC.commands = { register, unregister, run, list, label, keyFor, formatBinding, eventToStroke, check, install, get: (id) => registry.get(id), CONTEXTS };
 })(window.SC);
