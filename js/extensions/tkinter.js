@@ -11,10 +11,8 @@
 
   const { el } = SC.util;
 
-  let pane;
   let desk;
-  let emptyEl;
-  let statusEl;
+  let deskReady = false;
   let appRun = null;
   let data = null;
   let lastFocus = null;
@@ -805,8 +803,7 @@
     for (const n of visible) if (n.type === 'Canvas' && n.placed) drawCanvas(n);
     renderDialogs(d.dialogs || []);
     if (d.popup) { const m = nodes.get(d.popup.id); if (m) openMenuAt(d.popup.id, d.popup.x, d.popup.y); }
-    emptyEl.hidden = windows.some((n) => !n.el.hidden);
-    statusEl.textContent = windows.length ? 'Running: ' + windows.map((n) => n.title.textContent).join(', ') : '';
+    SC.appTab.setStatus('tkinter', windows.length ? 'Running: ' + windows.map((n) => n.title.textContent).join(', ') : '');
     if (d.focus !== lastFocus) {
       lastFocus = d.focus;
       const f = nodes.get(d.focus);
@@ -1161,8 +1158,7 @@
     const first = !data;
     data = d;
     if (first) {
-      SC.panel.show('app');
-      SC.panel.ensureHeight(Math.min(window.innerHeight * 0.75, 520));
+      SC.appTab.show();
     }
     draw(d);
     if (first) {
@@ -1184,25 +1180,10 @@
     lastFocus = null;
     lastSizes = '';
     Object.keys(winState).forEach((k) => delete winState[k]);
-    if (emptyEl) emptyEl.hidden = false;
-    if (statusEl) statusEl.textContent = '';
+    if (desk) SC.appTab.setStatus('tkinter', '');
   }
 
-  function buildPane() {
-    emptyEl = el('div', { class: 'app-empty' },
-      el('p', { text: 'Python tkinter windows open here.' }),
-      el('p', { class: 'app-hint', text: 'Write a program that uses tkinter (import tkinter as tk) and press F5. Run "New Tkinter App" from the command palette for a starting point.' }));
-    desk = el('div', { class: 'app-desk' }, emptyEl);
-    statusEl = el('span', { class: 'app-status' });
-    pane = el('div', { class: 'app-pane' },
-      el('div', { class: 'term-bar' }, statusEl, el('div', { class: 'spacer' }),
-        el('button', { class: 'icon-btn', type: 'button', title: 'Close the app (Shift+F5)', 'data-icon': 'stop', onClick: () => { if (appRun) SC.runner.stop(); } })),
-      desk);
-    SC.icons.hydrate(pane);
-    bindDeskEvents();
-    new ResizeObserver(() => { if (data && Object.values(winState).some((s) => s.max)) redraw(); }).observe(desk);
-    return pane;
-  }
+
 
   const STARTER = [
     'import tkinter as tk',
@@ -1250,12 +1231,19 @@
     ],
     commands: ['tkinter.showApp', 'tkinter.newApp'],
     activate(ctx) {
-      ctx.addPanelTab('app', 'App', pane || buildPane(), { onClear: () => { if (!appRun) clearAll(); } });
+      SC.appTab.acquire('tkinter');
+      ctx.onDispose(() => SC.appTab.release('tkinter'));
+      desk = SC.appTab.desk();
+      if (!deskReady) {
+        deskReady = true;
+        bindDeskEvents();
+        new ResizeObserver(() => { if (data && Object.values(winState).some((s) => s.max)) redraw(); }).observe(desk);
+      }
       ctx.onDispose(SC.runner.addPythonProvider(() => ({ pyModules: SC.tkinterPython })));
       SC.runner.on('app', onApp);
       SC.runner.on('finish', onFinish);
       ctx.onDispose(() => { SC.runner.off('app', onApp); SC.runner.off('finish', onFinish); clearAll(); });
-      ctx.registerCommand({ id: 'tkinter.showApp', title: 'Show App Window', run: () => SC.panel.show('app') });
+      ctx.registerCommand({ id: 'tkinter.showApp', title: 'Show App Window', run: () => SC.appTab.show() });
       ctx.registerCommand({ id: 'tkinter.newApp', title: 'New Tkinter App', run: newApp });
     },
   });

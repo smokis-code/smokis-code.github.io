@@ -604,9 +604,10 @@
     const f = { engine, token, booted: false };
     f.ready = new Promise((resolve, reject) => { f.resolve = resolve; f.reject = reject; });
     f.ready.catch(() => {});
-    const cfg = { frame: token, engine, worker: !!rt.worker, scripts: rt.scripts, indexURL: rt.indexURL, base: rt.base, wasm: rt.wasm };
+    const cfg = { frame: token, engine, worker: !!rt.worker, scripts: rt.scripts, indexURL: rt.indexURL, base: rt.base, wasm: rt.wasm, data: rt.data };
     const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
-    const main = '(' + sandboxMain.toString() + ')(' + json(cfg) + ');';
+    // Runtimes added by extensions bring their own sandbox code (rt.main)
+    const main = '(' + (rt.main || sandboxMain).toString() + ')(' + json(cfg) + ');';
     // Worker runtimes get a small page that starts the worker; JavaScript runs in the page itself.
     const boot = rt.worker ? '(' + frameRelay.toString() + ')(' + json(cfg) + ', ' + json(main) + ');' : main;
     f.iframe = el('iframe', { sandbox: 'allow-scripts', title: rt.label + ' runtime', style: { display: 'none' } });
@@ -673,6 +674,23 @@
   }
   /** Add Python modules or pip packages to every Python run: fn() returns { pyModules, pip }. */
   function addPythonProvider(fn) { pythonProviders.push(fn); return () => pythonProviders.splice(pythonProviders.indexOf(fn) >>> 0, 1); }
+
+  /**
+   * Add a runtime from an extension: rt = { label, worker, keep, main(cfg), data }.
+   * main runs in the sandbox (worker) and speaks the same messages as sandboxMain.
+   */
+  function addRuntime(id, rt) {
+    RUNTIMES[id] = rt;
+    return () => { if (RUNTIMES[id] === rt) { killFrame(id); delete RUNTIMES[id]; } };
+  }
+
+  /** Let an extension take F5 runs: fn({ lang, code }) returns null, { error } or { lang, extra }. */
+  const routers = [];
+  function addRouter(fn) { routers.push(fn); return () => { const i = routers.indexOf(fn); if (i !== -1) routers.splice(i, 1); }; }
+  function routeRun(lang, code) {
+    for (const fn of routers) { const r = fn({ lang, code }); if (r) return r; }
+    return null;
+  }
   function pythonExtras() {
     const extra = { pyModules: {}, pip: [] };
     for (const fn of pythonProviders) {
@@ -698,7 +716,7 @@
 
   /** Newest stable x86 compiler that can run code. Cached for 7 days. */
   async function pickCompiler(spec, signal, fresh) {
-    const key = 'godbolt.' + spec.lang;
+    const key = 'godbolt2.' + spec.lang; // v2: older saved picks could be 32-bit
     const cached = SC.storage.get(key, null);
     if (!fresh && cached && Date.now() - cached.time < WEEK) return cached;
     const res = await fetch(GODBOLT + 'compilers/' + encodeURIComponent(spec.lang) + '?fields=id,name,semver,instructionSet,supportsExecute,compilerType', { headers: { Accept: 'application/json' }, signal });
@@ -707,7 +725,9 @@
     let pool = list.filter(spec.pick);
     if (!pool.length) pool = list.filter((c) => c.instructionSet === 'amd64');
     if (!pool.length) throw new Error('godbolt.org has no compiler that can run ' + spec.label + ' right now.');
-    pool.sort((a, b) => compareVersions(versionOf(b), versionOf(a)));
+    // Newest first; for the same version prefer 64-bit (32-bit Go builds time out)
+    const is64 = (c) => (c.instructionSet === 'amd64' ? 0 : 1);
+    pool.sort((a, b) => compareVersions(versionOf(b), versionOf(a)) || is64(a) - is64(b));
     const pick = { id: pool[0].id, name: pool[0].name, time: Date.now() };
     SC.storage.set(key, pick);
     return pick;
@@ -928,6 +948,20 @@
     if (lang === 'markdown') { previewMarkdown(code, name); return; }
     if (lang === 'css') { previewCss(doc); return; }
     if (lang === 'json') { checkJson(code, name, doc); return; }
+    // An extension can take the run (for example C files that use raylib)
+    const routed = routeRun(lang, code);
+    if (routed && routed.error) {
+      SC.panel.show('output');
+      SC.panel.clear();
+      SC.panel.log('[Error] ' + name, 'system');
+      SC.panel.log(routed.error, 'error');
+      return;
+    }
+    if (routed) {
+      const input = await askInput(lang, code, name);
+      if (input == null) return;
+      return runSource({ lang: routed.lang, code, name, stdin: input, extra: routed.extra });
+    }
     const local = RUNTIMES[lang];
     const remote = COMPILED[lang];
     if (!local && !remote) {
@@ -964,7 +998,7 @@
     const r = startRun(name, sink);
     r.stdin = stdin;
     r.compileOnly = compileOnly;
-    if (local) runLocal(r, lang, code, stdin, extra);
+    if (local) runLocal(r, lang, code, stdin, compileOnly ? Object.assign({}, extra, { compileOnly: true }) : extra);
     else runRemote(r, remote, code, stdin);
     return r.promise;
   }
@@ -986,7 +1020,7 @@
   function init() { window.addEventListener('message', onMessage); }
 
   SC.runner = {
-    init, run, runSource, askInput, stop, on, off, send, addPythonProvider,
+    init, run, runSource, askInput, stop, on, off, send, addPythonProvider, addRuntime, addRouter, routeRun,
     isRunning: () => !!current, current: () => current, fmtTime,
     pickCompiler, prepareJava, findJsonError, RUNTIMES, COMPILED, READS_INPUT,
   };

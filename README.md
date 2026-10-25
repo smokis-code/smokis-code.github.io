@@ -116,12 +116,63 @@ and `ts-node`. Compilers build on godbolt.org and leave a small program file:
 `gcc hello.c -o hello` then `./hello.exe`, `g++`, `rustc`, `go build` /
 `go run`, `javac Main.java` then `java Main`, `csc` and `dotnet run`.
 
-`;` and `&&` run several commands, `>` and `>>` save output to a file, Up and
-Down go through history, Tab completes names and Ctrl+C stops a program.
+The shell works like the real one:
 
-This is an emulation written in JavaScript: there is no real Windows or MSYS2
-underneath, so only the commands listed by `help` exist, and pipes (`|`) are
-not supported yet.
+- Pipes and redirects: `ls | grep .c | sort -r`, `cat notes.txt | sort | uniq -c`,
+  `wc -l < notes.txt`, `>`, `>>` and `2>`. Text tools include `grep`, `sed`,
+  `tr`, `cut`, `sort`, `uniq`, `tee`, `xargs`, `diff`, `tree`, `printf`
+  and `echo -e`.
+- `;`, `&&` and `||`, `$?`, variables (`NAME=world`, `export`, `$HOME`; in
+  PowerShell `$x = 5` and `$env:NAME`), `alias`, one-line `for` and `if`
+  (with `[ ... ]` tests).
+- Scripts: `bash build.sh release` or `./build.sh` (with `$1`, `$@`, `$#`),
+  `make` with a Makefile, and `curl` / `wget` for web files.
+- PowerShell pipes `Get-ChildItem | Select-Object -First 3`,
+  `Sort-Object` and `Measure-Object`.
+
+Up and Down go through history, Tab completes names and Ctrl+C stops a
+program. This is an emulation written in JavaScript: there is no real Windows
+or MSYS2 underneath, so only the commands listed by `help` exist.
+
+#### pacman (MSYS2 profile)
+
+`pacman -Ss <name>` searches, `pacman -S <package>` installs (it asks
+`[Y/n]` like the real one; `--noconfirm` skips the question), `pacman -Q`
+lists installed packages, `pacman -Qi` shows details and `pacman -R` removes.
+The graphics libraries that work in the browser are:
+
+| Library | Install with | Link with |
+| --- | --- | --- |
+| raylib | `pacman -S mingw-w64-ucrt-x86_64-raylib` | `-lraylib` |
+| OpenGL + GLUT | `pacman -S mingw-w64-ucrt-x86_64-freeglut` | `-lfreeglut -lopengl32 -lglu32` |
+| GLFW | `pacman -S mingw-w64-ucrt-x86_64-glfw` | `-lglfw3 -lopengl32` |
+| GLEW / glad | `pacman -S mingw-w64-ucrt-x86_64-glew` (or `-glad`) | `-lglew32` |
+
+OpenGL itself (`GL/gl.h`, `GL/glu.h`) is always installed. The `mingw64`
+and `clang64` package names and short names (`pacman -S raylib`) work too.
+Other packages, such as SDL2, say that they can't run in the browser.
+
+### C Graphics
+
+C programs that use raylib, OpenGL (GLUT, GLFW, GLEW, glad) or the
+built-in `smoki_gfx.h` open a window in the **App** tab, with keyboard and
+mouse input. Install the library with pacman first; then press F5, or build
+in the MSYS2 terminal with `gcc main.c -o main -lraylib` and run
+`./main.exe`. If a library is missing, the error shows the pacman command to
+run.
+
+- The C compiler is [xcc](https://github.com/tyfkda/xcc) (MIT license), built
+  to WebAssembly and stored in `js/extensions/graphics/xcc.js`, so it works
+  offline. Games run in a worker; raylib draws with Canvas 2D, and OpenGL runs
+  on WebGL 2.
+- OpenGL supports the old fixed pipeline (`glBegin`/`glEnd`, matrices,
+  simple lighting, `gluPerspective`, `gluLookAt`) and modern GL with VAOs,
+  buffers and GLSL shaders (`#version 330` is converted to WebGL's
+  `300 es`).
+- Limits: C only (C++ graphics programs are not supported yet); needs a
+  browser with WebAssembly JSPI (current Chrome and Edge); raylib textures,
+  models, audio and custom fonts are not available; `glutSolidTeapot` draws a
+  sphere.
 
 ### pip
 
@@ -205,6 +256,11 @@ js/
     pip.js              pip for the in-browser Python
     tkinter-py.js       the browser version of Python's tkinter package
     tkinter.js          draws tkinter windows in the App tab
+    app-tab.js          the App tab shared by Tkinter and C Graphics
+    graphics.js         C Graphics: pacman packages, compiler worker, game window
+    graphics/
+      xcc.js            the xcc C compiler (WebAssembly, MIT license)
+      clib.js           headers and C code for raylib, OpenGL, GLUT, GLFW, GLEW
   fileio.js             import, download and ZIP export
   statusbar.js          status bar
   welcome.js            welcome page
@@ -215,6 +271,9 @@ js/
 
 The scripts are plain files that load in order (no modules or bundler), so the
 app works when opened straight from disk (`file://`) as well as from a web server.
+
+Every CSS and JS link in `index.html` ends in `?v=<date>`. Change it on every
+release so browsers load the new files instead of old cached copies.
 
 ## How running code works
 
@@ -234,8 +293,9 @@ compile and run.
 
 ## How the editor works
 
-Each open file gets a transparent `<textarea>` stacked exactly on top of a
-`<pre>` that holds a syntax-colored copy of the same text. You type in the
-textarea; the colored copy underneath is redrawn on every change. Edits made by
+Each open file gets a `<textarea>` stacked exactly under a `<pre>` that holds
+a syntax-colored copy of the same text. You type in the textarea (its text is
+transparent, so only the selection and caret show); the colored copy on top
+ignores the mouse and is redrawn on every change. Edits made by
 features such as auto-indent go through the browser's `insertText` command, so
 the normal `Ctrl+Z` / `Ctrl+Y` undo and redo keep working.
