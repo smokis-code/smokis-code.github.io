@@ -52,6 +52,7 @@ No install and no build step: open `index.html` and start coding.
 | Stop running program | `Shift+F5` |
 | Extensions | `Ctrl+Shift+X` |
 | Focus terminal | ``Ctrl+Shift+` `` |
+| Terminal / panel fullscreen | `Ctrl+Shift+F11` (`Esc` to leave) |
 
 Browsers keep `Ctrl+N`, `Ctrl+W` and `Ctrl+T` for themselves, which is why
 new file and close tab use `Alt` instead. On a Mac, `Ctrl` means `Cmd`.
@@ -131,7 +132,9 @@ The shell works like the real one:
   `Sort-Object` and `Measure-Object`.
 
 Up and Down go through history, Tab completes names and Ctrl+C stops a
-program. This is an emulation written in JavaScript: there is no real Windows
+program. The fullscreen button in the panel (or `Ctrl+Shift+F11`, or a
+double-click on the panel's tab bar) makes the terminal cover the code;
+`Esc` or the same button brings the code back. This is an emulation written in JavaScript: there is no real Windows
 or MSYS2 underneath, so only the commands listed by `help` exist.
 
 #### pacman (MSYS2 profile)
@@ -155,7 +158,7 @@ Other packages, such as SDL2, say that they can't run in the browser.
 ### C Graphics
 
 C programs that use raylib, OpenGL (GLUT, GLFW, GLEW, glad) or the
-built-in `smoki_gfx.h` open a window in the **App** tab, with keyboard and
+built-in `smoki_gfx.h` open a window in the **App** window, with keyboard and
 mouse input. Install the library with pacman first; then press F5, or build
 in the MSYS2 terminal with `gcc main.c -o main -lraylib` and run
 `./main.exe`. If a library is missing, the error shows the pacman command to
@@ -183,9 +186,17 @@ Pyodide's micropip, so it installs pure-Python packages from PyPI and
 Pyodide's own builds of packages such as numpy, pandas and matplotlib.
 Installed packages are remembered and loaded before every Python run.
 
+### App window
+
+Program windows open in the **App** window, a pane on the right of the code,
+so you can see your code and the running program side by side. Drag the
+line between them to change its width. Hide it with its × button and bring
+it back with *View: Toggle App Window*; it opens by itself when a program
+starts.
+
 ### Tkinter apps
 
-Python programs that use `tkinter` open their windows in the **App** tab,
+Python programs that use `tkinter` open their windows in the **App** window,
 drawn like Windows apps: title bar, menus, buttons, entries and so on. Run
 *New Tkinter App* from the command palette for a starting point.
 
@@ -227,7 +238,7 @@ css/
   editor.css            code editor, syntax token colors, find widget, welcome page
   explorer.css          explorer tree, search view, settings view
   palette.css           command palette, menus, dialogs, theme customizer
-  extensions.css        Extensions view, Terminal and App tab
+  extensions.css        Extensions view, Terminal and App window
 js/
   util.js               shared helpers (DOM, paths, fuzzy matching, toasts)
   icons.js              SVG icons and colored file-type badges
@@ -255,8 +266,8 @@ js/
     terminal.js         Terminal: PowerShell and MSYS2 profiles
     pip.js              pip for the in-browser Python
     tkinter-py.js       the browser version of Python's tkinter package
-    tkinter.js          draws tkinter windows in the App tab
-    app-tab.js          the App tab shared by Tkinter and C Graphics
+    tkinter.js          draws tkinter windows in the App window
+    app-tab.js          the App window (right of the code), shared by Tkinter and C Graphics
     graphics.js         C Graphics: pacman packages, compiler worker, game window
     graphics/
       xcc.js            the xcc C compiler (WebAssembly, MIT license)

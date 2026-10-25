@@ -8,12 +8,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/base.css?v=2026.10.25">
-<link rel="stylesheet" href="css/layout.css?v=2026.10.25">
-<link rel="stylesheet" href="css/editor.css?v=2026.10.25">
-<link rel="stylesheet" href="css/explorer.css?v=2026.10.25">
-<link rel="stylesheet" href="css/palette.css?v=2026.10.25">
-<link rel="stylesheet" href="css/extensions.css?v=2026.10.25">
+<link rel="stylesheet" href="css/base.css?v=2026.10.26">
+<link rel="stylesheet" href="css/layout.css?v=2026.10.26">
+<link rel="stylesheet" href="css/editor.css?v=2026.10.26">
+<link rel="stylesheet" href="css/explorer.css?v=2026.10.26">
+<link rel="stylesheet" href="css/palette.css?v=2026.10.26">
+<link rel="stylesheet" href="css/extensions.css?v=2026.10.26">
 </head>
 <body>
 <div id="app" class="workbench">
@@ -59,6 +59,7 @@
 
     <!-- Editor area + bottom panel -->
     <div class="editor-column">
+      <div class="editor-row">
       <div class="editor-group">
         <div class="tabs-bar">
           <div class="tabs" id="tabs" role="tablist"></div>
@@ -72,6 +73,10 @@
           <div class="find-widget" id="find-widget" hidden></div>
           <div class="welcome" id="welcome"></div>
         </div>
+      </div>
+      <!-- App window: program windows (tkinter, raylib...) beside the code -->
+      <div class="sash" id="app-sash" hidden></div>
+      <section class="app-side" id="app-side" hidden></section>
       </div>
       <div class="sash sash-h" id="panel-sash" hidden></div>
       <section class="panel" id="panel" hidden></section>
@@ -87,41 +92,41 @@
 
 <!-- Scripts load in order; each file adds one module to the global SC object.
      ?v= makes browsers fetch the new files after an update: change it on every release. -->
-<script src="js/util.js?v=2026.10.25"></script>
-<script src="js/icons.js?v=2026.10.25"></script>
-<script src="js/storage.js?v=2026.10.25"></script>
-<script src="js/settings.js?v=2026.10.25"></script>
-<script src="js/fs.js?v=2026.10.25"></script>
-<script src="js/zip.js?v=2026.10.25"></script>
-<script src="js/languages.js?v=2026.10.25"></script>
-<script src="js/highlighter.js?v=2026.10.25"></script>
-<script src="js/themes.js?v=2026.10.25"></script>
-<script src="js/commands.js?v=2026.10.25"></script>
-<script src="js/menu.js?v=2026.10.25"></script>
-<script src="js/dialogs.js?v=2026.10.25"></script>
-<script src="js/palette.js?v=2026.10.25"></script>
-<script src="js/editor.js?v=2026.10.25"></script>
-<script src="js/find.js?v=2026.10.25"></script>
-<script src="js/tabs.js?v=2026.10.25"></script>
-<script src="js/explorer.js?v=2026.10.25"></script>
-<script src="js/search.js?v=2026.10.25"></script>
-<script src="js/settings-view.js?v=2026.10.25"></script>
-<script src="js/panel.js?v=2026.10.25"></script>
-<script src="js/runner.js?v=2026.10.25"></script>
-<script src="js/extensions.js?v=2026.10.25"></script>
-<script src="js/extensions/terminal.js?v=2026.10.25"></script>
-<script src="js/extensions/pip.js?v=2026.10.25"></script>
-<script src="js/extensions/app-tab.js?v=2026.10.25"></script>
-<script src="js/extensions/tkinter-py.js?v=2026.10.25"></script>
-<script src="js/extensions/tkinter.js?v=2026.10.25"></script>
-<script src="js/extensions/graphics/xcc.js?v=2026.10.25"></script>
-<script src="js/extensions/graphics/clib.js?v=2026.10.25"></script>
-<script src="js/extensions/graphics.js?v=2026.10.25"></script>
-<script src="js/fileio.js?v=2026.10.25"></script>
-<script src="js/statusbar.js?v=2026.10.25"></script>
-<script src="js/welcome.js?v=2026.10.25"></script>
-<script src="js/cleanup.js?v=2026.10.25"></script>
-<script src="js/actions.js?v=2026.10.25"></script>
-<script src="js/app.js?v=2026.10.25"></script>
+<script src="js/util.js?v=2026.10.26"></script>
+<script src="js/icons.js?v=2026.10.26"></script>
+<script src="js/storage.js?v=2026.10.26"></script>
+<script src="js/settings.js?v=2026.10.26"></script>
+<script src="js/fs.js?v=2026.10.26"></script>
+<script src="js/zip.js?v=2026.10.26"></script>
+<script src="js/languages.js?v=2026.10.26"></script>
+<script src="js/highlighter.js?v=2026.10.26"></script>
+<script src="js/themes.js?v=2026.10.26"></script>
+<script src="js/commands.js?v=2026.10.26"></script>
+<script src="js/menu.js?v=2026.10.26"></script>
+<script src="js/dialogs.js?v=2026.10.26"></script>
+<script src="js/palette.js?v=2026.10.26"></script>
+<script src="js/editor.js?v=2026.10.26"></script>
+<script src="js/find.js?v=2026.10.26"></script>
+<script src="js/tabs.js?v=2026.10.26"></script>
+<script src="js/explorer.js?v=2026.10.26"></script>
+<script src="js/search.js?v=2026.10.26"></script>
+<script src="js/settings-view.js?v=2026.10.26"></script>
+<script src="js/panel.js?v=2026.10.26"></script>
+<script src="js/runner.js?v=2026.10.26"></script>
+<script src="js/extensions.js?v=2026.10.26"></script>
+<script src="js/extensions/terminal.js?v=2026.10.26"></script>
+<script src="js/extensions/pip.js?v=2026.10.26"></script>
+<script src="js/extensions/app-tab.js?v=2026.10.26"></script>
+<script src="js/extensions/tkinter-py.js?v=2026.10.26"></script>
+<script src="js/extensions/tkinter.js?v=2026.10.26"></script>
+<script src="js/extensions/graphics/xcc.js?v=2026.10.26"></script>
+<script src="js/extensions/graphics/clib.js?v=2026.10.26"></script>
+<script src="js/extensions/graphics.js?v=2026.10.26"></script>
+<script src="js/fileio.js?v=2026.10.26"></script>
+<script src="js/statusbar.js?v=2026.10.26"></script>
+<script src="js/welcome.js?v=2026.10.26"></script>
+<script src="js/cleanup.js?v=2026.10.26"></script>
+<script src="js/actions.js?v=2026.10.26"></script>
+<script src="js/app.js?v=2026.10.26"></script>
 </body>
 </html>

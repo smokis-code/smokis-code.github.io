@@ -20,6 +20,7 @@
   let openLine = null; // the last output line, while it has no newline yet
   let runBtn;
   let stopBtn;
+  let maxBtn;
 
   function init() {
     panel = document.getElementById('panel');
@@ -39,11 +40,18 @@
       runBtn,
       stopBtn,
       el('button', { class: 'icon-btn', type: 'button', title: 'Clear', 'data-icon': 'clear', onClick: () => { const p = panes[activeTab]; if (p && p.onClear) p.onClear(); } }),
+      maxBtn = el('button', { class: 'icon-btn', type: 'button', title: 'Fullscreen (Ctrl+Shift+F11)', 'data-icon': 'maximize', onClick: () => toggleMaximize() }),
       el('button', { class: 'icon-btn', type: 'button', title: 'Close Panel', 'data-icon': 'close', onClick: hide }));
+    header.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) toggleMaximize(); });
     panel.append(header, bodyEl);
     SC.icons.hydrate(panel);
     showTab('output');
     log('Press F5 to run the open file. JavaScript, TypeScript, Python, Lua, SQL and Ruby run in your browser; C, C++, Rust, Go, Java and C# are compiled on godbolt.org. HTML and Markdown files open in the Preview tab.', 'info');
+
+    // Esc leaves fullscreen (when no dialog or menu is open)
+    panel.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isMaximized() && !document.querySelector('#overlay-root > *')) toggleMaximize(false);
+    });
 
     initSash();
     const h = SC.storage.get('panelHeight', null);
@@ -84,6 +92,7 @@
     document.getElementById('tb-toggle-panel').classList.add('active');
   }
   function hide() {
+    if (isMaximized()) toggleMaximize(false);
     panel.hidden = true;
     sash.hidden = true;
     SC.storage.set('panelOpen', false);
@@ -92,6 +101,18 @@
     if (ed) ed.focus();
   }
   function toggle() { if (panel.hidden) show(); else hide(); }
+
+  /** Fullscreen: the panel (for example the terminal) covers the code area. */
+  function isMaximized() { return document.querySelector('.workbench').classList.contains('panel-max'); }
+  function toggleMaximize(on = !isMaximized()) {
+    if (on) show();
+    document.querySelector('.workbench').classList.toggle('panel-max', on);
+    maxBtn.dataset.icon = on ? 'restore' : 'maximize';
+    maxBtn.title = on ? 'Exit Fullscreen (Ctrl+Shift+F11 or Esc)' : 'Fullscreen (Ctrl+Shift+F11)';
+    SC.icons.hydrate(maxBtn);
+    const p = panes[activeTab];
+    if (p && p.onShow) p.onShow();
+  }
 
   function showTab(id) {
     if (!panes[id]) id = 'output';
@@ -212,5 +233,5 @@
     if (label) log(label, 'system');
   }
 
-  SC.panel = { init, show, hide, toggle, log, write, isLineOpen, clear, setRunning, previewHtml, previewDoc, addTab, removeTab, showTab, ensureHeight, isOpen: () => !panel.hidden, activeTab: () => activeTab };
+  SC.panel = { init, show, hide, toggle, log, write, isLineOpen, clear, setRunning, previewHtml, previewDoc, addTab, removeTab, showTab, ensureHeight, toggleMaximize, isMaximized, isOpen: () => !panel.hidden, activeTab: () => activeTab };
 })(window.SC);

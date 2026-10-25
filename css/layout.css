@@ -157,9 +157,15 @@
   flex-direction: column;
   border-left: 1px solid var(--c-border);
 }
+.editor-row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
 .editor-group {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--c-bg);
@@ -256,6 +262,11 @@
   min-height: 0;
   position: relative;
 }
+
+/* Maximized panel (fullscreen terminal): it takes the whole editor column */
+.workbench.panel-max .editor-row,
+.workbench.panel-max #panel-sash { display: none; }
+.workbench.panel-max .panel { flex: 1; height: auto; max-height: none; border-top: 0; }
 
 /* ---------- Bottom panel ---------- */
 .panel {

@@ -244,6 +244,8 @@
     R({ id: 'view.settings', category: 'Preferences', title: 'Open Settings', keybinding: 'Ctrl+,', run: () => SC.app.showView('settings') });
     R({ id: 'view.toggleSidebar', category: 'View', title: 'Toggle Primary Side Bar Visibility', keybinding: 'Ctrl+B', run: () => SC.app.toggleSidebar() });
     R({ id: 'view.togglePanel', category: 'View', title: 'Toggle Panel Visibility', keybinding: ['Ctrl+J', 'Ctrl+`'], run: () => SC.panel.toggle() });
+    R({ id: 'view.togglePanelFullscreen', category: 'View', title: 'Toggle Panel Fullscreen (Terminal Fullscreen)', keybinding: 'Ctrl+Shift+F11', run: () => SC.panel.toggleMaximize() });
+    R({ id: 'view.toggleApp', category: 'View', title: 'Toggle App Window (beside the code)', run: () => SC.appTab && SC.appTab.toggle() });
     R({ id: 'view.zoomIn', category: 'View', title: 'Zoom In (editor font size)', keybinding: 'Ctrl+=', run: () => zoom(1) });
     R({ id: 'view.zoomOut', category: 'View', title: 'Zoom Out (editor font size)', keybinding: 'Ctrl+-', run: () => zoom(-1) });
     R({ id: 'view.zoomReset', category: 'View', title: 'Reset Zoom', keybinding: 'Ctrl+0', run: () => zoom(0) });

@@ -1,12 +1,12 @@
 /* ==========================================================================
    extensions/graphics.js — C graphics: raylib, OpenGL, freeglut, GLFW and
-   GLEW programs, with their window in the App tab.
+   GLEW programs, with their window in the App window.
 
    How it works: the xcc compiler (graphics/xcc.js) compiles your C code to
    WebAssembly inside a background worker, together with the browser
    versions of the libraries (graphics/clib.js). The program then runs in
    that worker: raylib draws on a canvas, OpenGL calls go to WebGL 2, and
-   each finished frame is sent to the App tab. Between frames the program
+   each finished frame is sent to the App window. Between frames the program
    pauses (WebAssembly JSPI), so keyboard and mouse input can reach it.
 
    The libraries are "installed" with pacman in the MSYS2 terminal, like on
@@ -254,9 +254,54 @@
       w.setMemory(inst.exports.memory);
       let code = 0;
       try { inst.exports._start(); } catch (e) { if (e instanceof Exit) code = e.code; else throw e; }
-      const shown = errors.replace(/\/home\/user\//g, '').replace(/\/usr\/lib\/smoki\//g, '');
+      const shown = gccStyle(errors.replace(/\/home\/user\//g, '').replace(/\/usr\/lib\/smoki\//g, ''));
       if (code !== 0 || !files.has('/tmp/a.wasm')) return { ok: false, errors: shown || 'The compiler stopped with code ' + code + '.' };
       return { ok: true, wasm: files.get('/tmp/a.wasm'), warnings: shown };
+    }
+
+    /* xcc prints "main.c(5): msg" plus the line and a ^ mark, and repeats
+       errors after one mistake. Show them like gcc, once each. */
+    function gccStyle(text) {
+      const lines = text.replace(/\r/g, '').split('\n');
+      const items = [];
+      for (let i = 0; i < lines.length; i++) {
+        const m = lines[i].match(/^(.+?)\((\d+)\): (.*)$/);
+        if (!m) { if (lines[i].trim()) items.push({ raw: lines[i] }); continue; }
+        // the next lines are the code line as written and a line with the ^ mark
+        const isHeader = (l) => /^(.+?)\((\d+)\): /.test(l);
+        const src = lines[i + 1] != null && lines[i + 1].trim() && !isHeader(lines[i + 1]) ? lines[++i] : null;
+        const mark = src != null && lines[i + 1] != null && /^\s*\^/.test(lines[i + 1]) ? lines[++i] : '';
+        let msg = m[3].replace(/`([^`']*)['`]/g, "'$1'");
+        const warning = /^warning: /i.test(msg);
+        msg = msg.replace(/^(warning|error): /i, '');
+        let fn;
+        if ((fn = msg.match(/^function '(\w+)' expect (\d+) arguments?, but (\d+)$/))) {
+          msg = (+fn[3] < +fn[2] ? 'too few' : 'too many') + " arguments to function '" + fn[1] + "' (it takes " + fn[2] + ', you gave ' + fn[3] + ')';
+        } else if ((fn = msg.match(/^(.*) expected$/))) msg = 'expected ' + fn[1];
+        items.push({ file: m[1], line: +m[2], col: mark.indexOf('^') + 1 || 1, msg, warning, src, mark });
+      }
+      // One mistake makes xcc report the same spot over and over: keep the
+      // first two different messages on each line, and at most 10 in all.
+      const seen = new Set(), perLine = {}, out = [];
+      let hidden = 0, shownCount = 0;
+      for (const it of items) {
+        if (it.raw) { out.push(it.raw); continue; }
+        const key = it.line + ':' + it.col + ':' + it.msg;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        perLine[it.line] = (perLine[it.line] || 0) + 1;
+        if (perLine[it.line] > 2 || shownCount >= 10) { hidden++; continue; }
+        shownCount++;
+        let s = it.file + ':' + it.line + ':' + it.col + ': ' + (it.warning ? 'warning' : 'error') + ': ' + it.msg;
+        if (/^expected ','/.test(it.msg)) s += "\n      note: is a comma missing between two arguments?";
+        if (it.src != null) {
+          const pad = String(it.line).length;
+          s += '\n ' + String(it.line).padStart(pad) + ' | ' + it.src + (it.mark ? '\n ' + ' '.repeat(pad) + ' | ' + it.mark : '');
+        }
+        out.push(s);
+      }
+      if (hidden) out.push('(' + hidden + ' more error' + (hidden > 1 ? 's' : '') + ' hidden: they usually come from the first one, so fix that and build again)');
+      return out.join('\n') + (out.length ? '\n' : '');
     }
 
     /* ---------- graphics for the program ---------- */
@@ -954,7 +999,7 @@
   }
 
   /* ======================================================================
-     The window in the App tab
+     The window in the App window
      ====================================================================== */
   let win = null;
   let winRun = null;
@@ -985,6 +1030,7 @@
       win.canvas.width = w;
       win.canvas.height = h;
       if (title) win.title.textContent = title;
+      win.fit();
       return;
     }
     closeWindow();
@@ -996,12 +1042,25 @@
       el('span', { class: 'tkw-icon gfx-icon', 'aria-hidden': 'true' }), titleEl,
       el('div', { class: 'tkw-btns' },
         el('button', { class: 'tkw-btn min', type: 'button', 'aria-label': 'Minimize', onClick: () => node.classList.toggle('minimized') }),
-        el('button', { class: 'tkw-btn max', type: 'button', 'aria-label': 'Maximize', onClick: () => node.classList.toggle('gfx-max') }),
+        el('button', { class: 'tkw-btn max', type: 'button', 'aria-label': 'Maximize', onClick: () => { node.classList.toggle('gfx-max'); fit(); } }),
         el('button', { class: 'tkw-btn close', type: 'button', 'aria-label': 'Close', onClick: () => sendInput({ type: 'close' }) })));
     const client = el('div', { class: 'tkw-client gfx-client' }, canvas);
     const node = el('div', { class: 'tkw gfx-window', tabindex: '0', role: 'application', 'aria-label': title || 'Program window', style: { left: '24px', top: '16px' } }, bar, client);
     desk.append(node);
-    win = { node, canvas, title: titleEl, ctx: canvas.getContext('2d') };
+    // Shrink the picture to fit the App window (the mouse still maps to
+    // the program's own pixels, see pos below)
+    const fit = () => {
+      if (node.classList.contains('gfx-max')) { canvas.style.width = canvas.style.height = ''; return; }
+      const cw = canvas.width, ch = canvas.height;
+      const s = Math.max(0.1, Math.min(1, (desk.clientWidth - 24) / (cw + 2), (desk.clientHeight - 24 - bar.offsetHeight) / (ch + 2)));
+      canvas.style.width = Math.floor(cw * s) + 'px';
+      canvas.style.height = Math.floor(ch * s) + 'px';
+      if (node.offsetLeft + node.offsetWidth > desk.clientWidth - 12) node.style.left = Math.max(12, desk.clientWidth - node.offsetWidth - 12) + 'px';
+      if (node.offsetTop + node.offsetHeight > desk.clientHeight - 12) node.style.top = Math.max(12, desk.clientHeight - node.offsetHeight - 12) + 'px';
+    };
+    const resizer = new ResizeObserver(fit);
+    resizer.observe(desk);
+    win = { node, canvas, title: titleEl, ctx: canvas.getContext('2d'), fit, resizer };
     // Drag the window by its title bar
     bar.addEventListener('pointerdown', (e) => {
       if (e.target.closest('.tkw-btns') || e.button !== 0) return;
@@ -1041,7 +1100,7 @@
   }
 
   function closeWindow() {
-    if (win) win.node.remove();
+    if (win) { win.resizer.disconnect(); win.node.remove(); }
     win = null;
     winRun = null;
     if (SC.appTab) { SC.appTab.setStatus('graphics', ''); SC.appTab.refresh(); }
@@ -1054,7 +1113,7 @@
   }
   function onFrame(d, run) {
     if (!win || winRun !== run || !d.bitmap) return;
-    if (win.canvas.width !== d.bitmap.width || win.canvas.height !== d.bitmap.height) { win.canvas.width = d.bitmap.width; win.canvas.height = d.bitmap.height; }
+    if (win.canvas.width !== d.bitmap.width || win.canvas.height !== d.bitmap.height) { win.canvas.width = d.bitmap.width; win.canvas.height = d.bitmap.height; win.fit(); }
     win.ctx.drawImage(d.bitmap, 0, 0);
     d.bitmap.close();
   }
@@ -1097,10 +1156,10 @@
     name: 'C Graphics',
     version: '1.0.0',
     icon: { text: 'GL', color: '#5c8a1f' },
-    description: 'raylib, OpenGL, freeglut, GLFW and GLEW for C programs. Install them with pacman; windows open in the App tab.',
+    description: 'raylib, OpenGL, freeglut, GLFW and GLEW for C programs. Install them with pacman; windows open in the App window.',
     features: [
       'pacman -S mingw-w64-ucrt-x86_64-raylib (or -freeglut, -glfw, -glew, -mesa) in the MSYS2 terminal installs the library.',
-      'C programs that include raylib.h, GL/glut.h, GLFW/glfw3.h or GL/glew.h compile in your browser (xcc compiler) and draw in the App tab.',
+      'C programs that include raylib.h, GL/glut.h, GLFW/glfw3.h or GL/glew.h compile in your browser (xcc compiler) and draw in the App window.',
       'raylib: 2D shapes, text, colors, keyboard and mouse input, collisions, raymath. 3D drawing, pictures and sound are not available yet.',
       'OpenGL: glBegin/glEnd, matrices (glRotate, gluPerspective, gluLookAt), simple lighting, and modern OpenGL 3.3 with shaders, buffers and VAOs (drawn with WebGL 2).',
       'Needs a browser with WebAssembly JSPI (recent Chrome or Edge). Only C, not C++.',

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   extensions/tkinter.js — runs Python tkinter programs in the App tab.
+   extensions/tkinter.js — runs Python tkinter programs in the App window.
 
    The Python side (tkinter-py.js) sends the whole window tree as JSON
    after every change. This file draws it like a Windows app, lays it out
@@ -1221,7 +1221,7 @@
     name: 'Tkinter Apps',
     version: '1.0.0',
     icon: { text: 'Tk', color: '#c17d11' },
-    description: 'Run Python tkinter programs. Their windows open in the App tab, drawn like Windows apps.',
+    description: 'Run Python tkinter programs. Their windows open in the App window, drawn like Windows apps.',
     features: [
       'Widgets: Label, Button, Entry, Text, Checkbutton, Radiobutton, Scale, Spinbox, Listbox, Canvas, Frame, LabelFrame, Menu, OptionMenu, Toplevel.',
       'ttk: Button, Entry, Combobox, Notebook, Progressbar, Treeview, Separator and more.',

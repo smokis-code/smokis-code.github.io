@@ -1,7 +1,7 @@
 /* ==========================================================================
    extensions/tkinter-py.js — the Python side of the Tkinter extension: a
    browser version of the tkinter package for Pyodide. Widgets keep their
-   state in Python and send the whole window tree as JSON to the App tab
+   state in Python and send the whole window tree as JSON to the App window
    (tkinter.js), which draws it and sends clicks and typing back.
 
    The files are kept as text (String.raw) so the app needs no build step
@@ -39,7 +39,7 @@ MOVETO, SCROLL, UNITS, PAGES = "moveto", "scroll", "units", "pages"
 
   const INIT = String.raw`"""tkinter for Smoki's Code.
 
-A browser version of tkinter: windows are drawn in the App tab of the
+A browser version of tkinter: windows are drawn in the App window of the
 editor. It supports the common widgets, pack/grid/place, variables,
 bind() events, after() timers, menus and message boxes.
 
@@ -632,7 +632,7 @@ class Misc:
         v = self._opts.get(key)
         return v if isinstance(v, Variable) else None
 
-    # json for the App tab
+    # json for the App window
     def _json(self):
         d = {"id": self._w, "type": self._type, "parent": self.master._w if self.master is not None else None,
              "opts": {k: _jv(v) for k, v in self._opts.items()}, "manager": self._manager,

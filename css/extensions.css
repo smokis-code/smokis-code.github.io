@@ -93,6 +93,24 @@
 .t-cmd { color: var(--c-accent); }
 .t-system { color: var(--c-accent); }
 
+/* ---------- App window: a pane on the right of the code ---------- */
+.app-side {
+  flex: none; width: var(--app-width, 45%); min-width: 240px; max-width: calc(100% - 200px);
+  display: flex; flex-direction: column; min-height: 0;
+  border-left: 1px solid var(--c-border); background: var(--c-bg);
+}
+.app-side[hidden], #app-sash[hidden] { display: none; }
+.app-side > .app-pane { flex: 1; min-height: 0; }
+.app-side.resizing { pointer-events: none; }
+.app-side-header {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 35px; padding: 0 6px 0 12px;
+  background: var(--c-tab-bg); border-bottom: 1px solid var(--c-border); font-size: 12px; color: var(--c-fg-muted);
+}
+.app-side-title { color: var(--c-fg); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+.app-side-header .spacer { flex: 1; }
+.app-side-header .stop-btn { color: var(--c-error); }
+@media (max-width: 700px) { .app-side { min-width: 0; width: 60%; } }
+
 /* ---------- App tab: a desktop for Tk windows ---------- */
 .app-status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-desk {
