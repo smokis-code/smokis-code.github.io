@@ -211,7 +211,7 @@
       else if (bottom > sc.scrollTop + sc.clientHeight - 4) sc.scrollTop = bottom - sc.clientHeight + 4;
 
       const gutterW = this.gutter.offsetWidth;
-      const x = this.visualCol(p.line, p.col) * this.charWidth() + 6; // 6px = code padding
+      const x = this.visualCol(p.line, p.col) * this.charWidth();
       const viewW = sc.clientWidth - gutterW;
       if (x < sc.scrollLeft + 8) sc.scrollLeft = Math.max(0, x - 40);
       else if (x > sc.scrollLeft + viewW - 24) sc.scrollLeft = x - viewW + 60;
@@ -239,7 +239,7 @@
         const x2 = b.line === a.line ? this.visualCol(b.line, b.col) : x1 + 1;
         const box = el('div', { class: 'find-mark' + (i === this.currentMark ? ' current' : '') });
         box.style.top = a.line * lh + 'px';
-        box.style.left = 6 + x1 * cw + 'px';
+        box.style.left = x1 * cw + 'px';
         box.style.width = Math.max(2, (x2 - x1) * cw) + 'px';
         frag.append(box);
       }
